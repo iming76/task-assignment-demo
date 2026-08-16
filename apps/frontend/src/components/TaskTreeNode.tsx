@@ -16,17 +16,17 @@ import {
   FieldError,
   FieldLabel,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from "@repo/ui";
 
 import { ApiClientError } from "../api";
 import { useCreateTask, usePatchTask } from "../hooks/tasks";
 import type { TaskTreeNode as TaskTreeNodeModel } from "../lib/task-tree";
-import { SkillCheckboxGroup } from "./SkillCheckboxGroup";
+import {
+  emptyTaskAssignment,
+  isTaskAssignmentComplete,
+  TaskAssignmentFields,
+  taskAssignmentFromTask,
+} from "./TaskAssignmentFields";
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiClientError ? error.message : fallback;
@@ -47,8 +47,6 @@ function statusErrorMessage(error: unknown): string {
   return guidance ? `${error.message} ${guidance}` : error.message;
 }
 
-const UNASSIGNED = "__unassigned__";
-
 interface TaskTreeNodeProps {
   node: TaskTreeNodeModel;
   skills: Skill[];
@@ -65,23 +63,20 @@ export function TaskTreeNodeView({
   const { task, children } = node;
   const patchTask = usePatchTask();
   const createTask = useCreateTask();
+  const assignCreatedTask = usePatchTask();
   const statusPatch = usePatchTask();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
   const [editDescription, setEditDescription] = useState(task.description);
-  const [editSkillIds, setEditSkillIds] = useState<string[]>(
-    task.requiredSkillIds,
-  );
-  const [editAssigneeId, setEditAssigneeId] = useState<string>(
-    task.assigneeId ?? UNASSIGNED,
+  const [editAssignment, setEditAssignment] = useState(() =>
+    taskAssignmentFromTask(task, skills),
   );
 
   const [isAddingChild, setIsAddingChild] = useState(false);
   const [childTitle, setChildTitle] = useState("");
   const [childDescription, setChildDescription] = useState("");
-  const [childSkillIds, setChildSkillIds] = useState<string[]>([]);
-  const [childSkillsTouched, setChildSkillsTouched] = useState(false);
+  const [childAssignment, setChildAssignment] = useState(emptyTaskAssignment);
 
   const skillName = (skillId: string) =>
     skills.find((skill) => skill.id === skillId)?.name ?? skillId;
@@ -89,22 +84,10 @@ export function TaskTreeNodeView({
     developers.find((developer) => developer.id === assigneeId)?.name ??
     assigneeId;
 
-  const eligibleForEdit = developers.filter((developer) =>
-    editSkillIds.every((skillId) => developer.skillIds.includes(skillId)),
-  );
-  const assigneeOptions =
-    task.assigneeId && !eligibleForEdit.some((d) => d.id === task.assigneeId)
-      ? [
-          ...eligibleForEdit,
-          developers.find((d) => d.id === task.assigneeId),
-        ].filter((d): d is Developer => d !== undefined)
-      : eligibleForEdit;
-
   function startEdit() {
     setEditTitle(task.title);
     setEditDescription(task.description);
-    setEditSkillIds(task.requiredSkillIds);
-    setEditAssigneeId(task.assigneeId ?? UNASSIGNED);
+    setEditAssignment(taskAssignmentFromTask(task, skills));
     patchTask.reset();
     setIsEditing(true);
   }
@@ -117,8 +100,12 @@ export function TaskTreeNodeView({
         input: {
           title: editTitle,
           description: editDescription,
-          requiredSkillIds: editSkillIds,
-          assigneeId: editAssigneeId === UNASSIGNED ? null : editAssigneeId,
+          requiredSkillIds: editAssignment.requiredAssignee
+            ? editAssignment.skillIds
+            : [],
+          assigneeId: editAssignment.requiredAssignee
+            ? editAssignment.assigneeId
+            : null,
         },
       },
       { onSuccess: () => setIsEditing(false) },
@@ -132,14 +119,21 @@ export function TaskTreeNodeView({
         title: childTitle,
         description: childDescription,
         parentTaskId: task.id,
-        ...(childSkillsTouched ? { requiredSkillIds: childSkillIds } : {}),
+        ...(childAssignment.requiredAssignee
+          ? { requiredSkillIds: childAssignment.skillIds }
+          : {}),
       },
       {
-        onSuccess: () => {
+        onSuccess: (createdTask) => {
+          if (childAssignment.requiredAssignee && childAssignment.assigneeId) {
+            assignCreatedTask.mutate({
+              id: createdTask.id,
+              input: { assigneeId: childAssignment.assigneeId },
+            });
+          }
           setChildTitle("");
           setChildDescription("");
-          setChildSkillIds([]);
-          setChildSkillsTouched(false);
+          setChildAssignment(emptyTaskAssignment());
           setIsAddingChild(false);
         },
       },
@@ -179,43 +173,24 @@ export function TaskTreeNodeView({
                 required
               />
             </Field>
-            <Field>
-              <FieldLabel>Required skills</FieldLabel>
-              <SkillCheckboxGroup
-                skills={skills}
-                selectedSkillIds={editSkillIds}
-                onChange={setEditSkillIds}
-                idPrefix={`edit-${task.id}`}
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor={`edit-assignee-${task.id}`}>
-                Assignee
-              </FieldLabel>
-              <Select value={editAssigneeId} onValueChange={setEditAssigneeId}>
-                <SelectTrigger
-                  id={`edit-assignee-${task.id}`}
-                  className="w-full"
-                >
-                  <SelectValue placeholder="Unassigned" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-                  {assigneeOptions.map((developer) => (
-                    <SelectItem key={developer.id} value={developer.id}>
-                      {developer.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </Field>
+            <TaskAssignmentFields
+              idPrefix={`edit-${task.id}`}
+              value={editAssignment}
+              onChange={setEditAssignment}
+            />
             {patchTask.isError ? (
               <FieldError>
                 {errorMessage(patchTask.error, "Unable to update task.")}
               </FieldError>
             ) : null}
             <div className="flex gap-2">
-              <Button type="submit" disabled={patchTask.isPending}>
+              <Button
+                type="submit"
+                disabled={
+                  patchTask.isPending ||
+                  !isTaskAssignmentComplete(editAssignment)
+                }
+              >
                 {patchTask.isPending ? "Saving…" : "Save"}
               </Button>
               <Button
@@ -326,38 +301,40 @@ export function TaskTreeNodeView({
                 required
               />
             </Field>
-            <Field>
-              <FieldLabel>Required skills</FieldLabel>
-              <SkillCheckboxGroup
-                skills={skills}
-                selectedSkillIds={childSkillIds}
-                onChange={(ids) => {
-                  setChildSkillsTouched(true);
-                  setChildSkillIds(ids);
-                }}
-                idPrefix={`child-${task.id}`}
-              />
-            </Field>
+            <TaskAssignmentFields
+              idPrefix={`child-${task.id}`}
+              value={childAssignment}
+              onChange={setChildAssignment}
+            />
             {createTask.isError ? (
               <FieldError>
                 {errorMessage(createTask.error, "Unable to create subtask.")}
               </FieldError>
             ) : null}
             <div className="flex gap-2">
-              <Button type="submit" disabled={createTask.isPending}>
-                {createTask.isPending ? "Adding…" : "Add subtask"}
+              <Button
+                type="submit"
+                disabled={
+                  createTask.isPending ||
+                  assignCreatedTask.isPending ||
+                  !isTaskAssignmentComplete(childAssignment)
+                }
+              >
+                {createTask.isPending || assignCreatedTask.isPending
+                  ? "Adding…"
+                  : "Add subtask"}
               </Button>
               <Button
                 type="button"
                 variant="outline"
-                disabled={createTask.isPending}
+                disabled={createTask.isPending || assignCreatedTask.isPending}
                 onClick={() => {
                   setIsAddingChild(false);
                   setChildTitle("");
                   setChildDescription("");
-                  setChildSkillIds([]);
-                  setChildSkillsTouched(false);
+                  setChildAssignment(emptyTaskAssignment());
                   createTask.reset();
+                  assignCreatedTask.reset();
                 }}
               >
                 Cancel
@@ -371,12 +348,23 @@ export function TaskTreeNodeView({
             className="self-start"
             onClick={() => {
               createTask.reset();
+              assignCreatedTask.reset();
+              setChildAssignment(emptyTaskAssignment());
               setIsAddingChild(true);
             }}
           >
             Add subtask
           </Button>
         )}
+        {assignCreatedTask.isError ? (
+          <FieldError>
+            The subtask was created, but its assignee could not be saved.{" "}
+            {errorMessage(
+              assignCreatedTask.error,
+              "Edit the subtask to assign it.",
+            )}
+          </FieldError>
+        ) : null}
       </CardContent>
     </Card>
   );

@@ -161,7 +161,10 @@ describe("TasksPage", () => {
     const user = userEvent.setup();
     mockApi({
       "GET /tasks": { status: 200, body: [] },
-      ...noDevelopers,
+      "GET /developers": {
+        status: 200,
+        body: [{ id: "d1", name: "Frontend Dev", skillIds: ["s1"] }],
+      },
       "GET /skills": {
         status: 200,
         body: [
@@ -239,6 +242,12 @@ describe("TasksPage", () => {
             description: "API",
             categoryId: "c-backend",
           },
+          {
+            id: "s-unowned",
+            name: "Vue",
+            description: "UI",
+            categoryId: "c-frontend",
+          },
         ],
       },
       "GET /developers": {
@@ -276,6 +285,9 @@ describe("TasksPage", () => {
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("checkbox", { name: "Node.js" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "Vue" }),
     ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("checkbox", { name: "React" }));
@@ -330,6 +342,9 @@ describe("TasksPage", () => {
     await user.click(
       within(childCard).getByRole("button", { name: "Add subtask" }),
     );
+    expect(
+      within(childCard).getByRole("switch", { name: "Required assignee" }),
+    ).toBeInTheDocument();
 
     await user.type(within(childCard).getByLabelText("Title"), "Grandchild");
     await user.type(
@@ -350,6 +365,88 @@ describe("TasksPage", () => {
             description: "Grandchild task.",
             parentTaskId: "child",
           }),
+        }),
+      ),
+    );
+  });
+
+  it("uses the shared assignment fields when creating a subtask", async () => {
+    const user = userEvent.setup();
+    const assignedChild = {
+      ...child,
+      requiredSkillIds: ["s1"],
+    };
+    mockApi({
+      "GET /tasks": { status: 200, body: [root] },
+      "GET /categories": {
+        status: 200,
+        body: [{ id: "c1", name: "Frontend" }],
+      },
+      "GET /skills": {
+        status: 200,
+        body: [
+          { id: "s1", name: "React", description: "UI", categoryId: "c1" },
+        ],
+      },
+      "GET /developers": {
+        status: 200,
+        body: [{ id: "d1", name: "Frontend Dev", skillIds: ["s1"] }],
+      },
+      "POST /tasks": { status: 201, body: assignedChild },
+      "PATCH /tasks/child": {
+        status: 200,
+        body: { ...assignedChild, assigneeId: "d1" },
+      },
+    });
+
+    renderWithQueryClient(<TasksPage />);
+    const rootCard = (await screen.findByText("Root")).closest(
+      '[data-slot="card"]',
+    ) as HTMLElement;
+    await user.click(
+      within(rootCard).getByRole("button", { name: "Add subtask" }),
+    );
+    await user.type(within(rootCard).getByLabelText("Title"), "Child");
+    await user.type(
+      within(rootCard).getByLabelText("Description"),
+      "Child task.",
+    );
+    await user.click(
+      within(rootCard).getByRole("switch", { name: "Required assignee" }),
+    );
+    await user.click(within(rootCard).getByLabelText("Category"));
+    await user.click(screen.getByRole("option", { name: "Frontend" }));
+    await user.click(
+      await within(rootCard).findByRole("checkbox", { name: "React" }),
+    );
+
+    expect(within(rootCard).getByLabelText("Assignee")).toHaveTextContent(
+      "Frontend Dev (0 incomplete tasks)",
+    );
+    await user.click(
+      within(rootCard).getByRole("button", { name: "Add subtask" }),
+    );
+
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        `${DEFAULT_API_BASE_URL}/tasks`,
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            title: "Child",
+            description: "Child task.",
+            parentTaskId: "root",
+            requiredSkillIds: ["s1"],
+          }),
+        }),
+      ),
+    );
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        `${DEFAULT_API_BASE_URL}/tasks/child`,
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ assigneeId: "d1" }),
         }),
       ),
     );
@@ -405,13 +502,19 @@ describe("TasksPage", () => {
     await user.click(screen.getByLabelText("Assignee"));
 
     expect(
-      screen.getByRole("option", { name: "Eligible Dev" }),
+      screen.getByRole("option", {
+        name: "Eligible Dev (0 incomplete tasks)",
+      }),
     ).toBeInTheDocument();
     expect(
       screen.queryByRole("option", { name: "Ineligible Dev" }),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("option", { name: "Eligible Dev" }));
+    await user.click(
+      screen.getByRole("option", {
+        name: "Eligible Dev (0 incomplete tasks)",
+      }),
+    );
     await user.click(screen.getByRole("button", { name: "Save" }));
 
     await waitFor(() =>
@@ -434,7 +537,14 @@ describe("TasksPage", () => {
     const user = userEvent.setup();
     mockApi({
       "GET /tasks": { status: 200, body: [root] },
-      ...noDevelopers,
+      "GET /developers": {
+        status: 200,
+        body: [{ id: "d1", name: "Frontend Dev", skillIds: ["s1"] }],
+      },
+      "GET /categories": {
+        status: 200,
+        body: [{ id: "c1", name: "Frontend" }],
+      },
       "GET /skills": {
         status: 200,
         body: [
@@ -454,6 +564,11 @@ describe("TasksPage", () => {
 
     await user.click(within(rootCard).getByRole("button", { name: "Edit" }));
     await user.click(
+      within(rootCard).getByRole("switch", { name: "Required assignee" }),
+    );
+    await user.click(within(rootCard).getByLabelText("Category"));
+    await user.click(screen.getByRole("option", { name: "Frontend" }));
+    await user.click(
       await within(rootCard).findByRole("checkbox", { name: "React" }),
     );
     await user.click(within(rootCard).getByRole("button", { name: "Save" }));
@@ -467,7 +582,7 @@ describe("TasksPage", () => {
             title: "Root",
             description: "Root task.",
             requiredSkillIds: ["s1"],
-            assigneeId: null,
+            assigneeId: "d1",
           }),
         }),
       ),

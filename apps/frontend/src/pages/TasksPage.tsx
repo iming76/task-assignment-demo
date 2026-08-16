@@ -11,19 +11,17 @@ import {
   FieldError,
   FieldLabel,
   Input,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
 } from "@repo/ui";
 
 import { ApiClientError } from "../api";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { EmptyState, ErrorState, LoadingState } from "../components/RouteState";
-import { SkillCheckboxGroup } from "../components/SkillCheckboxGroup";
+import {
+  emptyTaskAssignment,
+  isTaskAssignmentComplete,
+  TaskAssignmentFields,
+} from "../components/TaskAssignmentFields";
 import { TaskTreeNodeView } from "../components/TaskTreeNode";
-import { useCategories } from "../hooks/categories";
 import { useDevelopers } from "../hooks/developers";
 import { useSkills } from "../hooks/skills";
 import {
@@ -38,22 +36,9 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiClientError ? error.message : fallback;
 }
 
-const UNASSIGNED = "__unassigned__";
-
-function incompleteTaskCount(tasks: Task[], developerId: string): number {
-  return tasks.filter(
-    (task) => task.assigneeId === developerId && task.status !== "DONE",
-  ).length;
-}
-
-function workloadLabel(count: number): string {
-  return `${count} incomplete ${count === 1 ? "task" : "tasks"}`;
-}
-
 export function TasksPage() {
   const tasksQuery = useTasks();
   const developersQuery = useDevelopers();
-  const categoriesQuery = useCategories();
   const skillsQuery = useSkills();
   const createTask = useCreateTask();
   const assignCreatedTask = usePatchTask();
@@ -61,34 +46,12 @@ export function TasksPage() {
 
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [requiredAssignee, setRequiredAssignee] = useState(false);
-  const [categoryId, setCategoryId] = useState("");
-  const [skillIds, setSkillIds] = useState<string[]>([]);
-  const [skillsTouched, setSkillsTouched] = useState(false);
-  const [assigneeId, setAssigneeId] = useState(UNASSIGNED);
-  const [assigneeWasChosen, setAssigneeWasChosen] = useState(false);
+  const [assignment, setAssignment] = useState(emptyTaskAssignment);
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
 
-  const categories = categoriesQuery.data ?? [];
   const skills = skillsQuery.data ?? [];
   const developers = developersQuery.data ?? [];
   const tasks = tasksQuery.data ?? [];
-  const categorySkills = categoryId
-    ? skills.filter((skill) => skill.categoryId === categoryId)
-    : [];
-  const eligibleDevelopers = developers
-    .filter((developer) =>
-      skillIds.every((skillId) => developer.skillIds.includes(skillId)),
-    )
-    .sort(
-      (left, right) =>
-        incompleteTaskCount(tasks, left.id) -
-          incompleteTaskCount(tasks, right.id) ||
-        left.id.localeCompare(right.id),
-    );
-  const selectedAssigneeId = assigneeWasChosen
-    ? assigneeId
-    : (eligibleDevelopers[0]?.id ?? UNASSIGNED);
 
   function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -97,24 +60,21 @@ export function TasksPage() {
       {
         title,
         description,
-        ...(skillsTouched ? { requiredSkillIds: skillIds } : {}),
+        ...(assignment.requiredAssignee
+          ? { requiredSkillIds: assignment.skillIds }
+          : {}),
       },
       {
         onSuccess: (createdTask) => {
-          if (requiredAssignee && selectedAssigneeId !== UNASSIGNED) {
+          if (assignment.requiredAssignee && assignment.assigneeId) {
             assignCreatedTask.mutate({
               id: createdTask.id,
-              input: { assigneeId: selectedAssigneeId },
+              input: { assigneeId: assignment.assigneeId },
             });
           }
           setTitle("");
           setDescription("");
-          setRequiredAssignee(false);
-          setCategoryId("");
-          setSkillIds([]);
-          setSkillsTouched(false);
-          setAssigneeId(UNASSIGNED);
-          setAssigneeWasChosen(false);
+          setAssignment(emptyTaskAssignment());
         },
       },
     );
@@ -136,7 +96,7 @@ export function TasksPage() {
   const isCreating = createTask.isPending || assignCreatedTask.isPending;
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
           <CardTitle>Add a task</CardTitle>
@@ -162,167 +122,11 @@ export function TasksPage() {
                 required
               />
             </Field>
-            <Field>
-              <div className="flex min-h-11 items-center justify-between gap-4 rounded-md border border-input px-3 py-2">
-                <div>
-                  <FieldLabel id="required-assignee-label">
-                    Required assignee
-                  </FieldLabel>
-                  <p className="text-sm text-muted-foreground">
-                    Match this task to an available developer.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={requiredAssignee}
-                  aria-labelledby="required-assignee-label"
-                  className="flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
-                  onClick={() => {
-                    setRequiredAssignee((current) => !current);
-                    setSkillIds([]);
-                    setSkillsTouched(false);
-                    setCategoryId("");
-                    setAssigneeId(UNASSIGNED);
-                    setAssigneeWasChosen(false);
-                  }}
-                >
-                  <span
-                    aria-hidden="true"
-                    className={`flex h-6 w-11 items-center rounded-full p-0.5 transition-colors duration-200 motion-reduce:transition-none ${
-                      requiredAssignee ? "bg-primary" : "bg-muted-foreground/40"
-                    }`}
-                  >
-                    <span
-                      className={`size-5 rounded-full bg-background shadow-xs transition-transform duration-200 motion-reduce:transition-none ${
-                        requiredAssignee ? "translate-x-5" : "translate-x-0"
-                      }`}
-                    />
-                  </span>
-                </button>
-              </div>
-            </Field>
-            {requiredAssignee ? (
-              <Field>
-                <FieldLabel htmlFor="task-category">Category</FieldLabel>
-                {categoriesQuery.isLoading ? (
-                  <p className="text-sm text-muted-foreground">
-                    Loading categories…
-                  </p>
-                ) : categoriesQuery.isError ? (
-                  <FieldError>
-                    {errorMessage(
-                      categoriesQuery.error,
-                      "Unable to load categories.",
-                    )}
-                  </FieldError>
-                ) : (
-                  <Select
-                    value={categoryId}
-                    onValueChange={(value) => {
-                      setCategoryId(value);
-                      setSkillIds([]);
-                      setSkillsTouched(false);
-                      setAssigneeId(UNASSIGNED);
-                      setAssigneeWasChosen(false);
-                    }}
-                  >
-                    <SelectTrigger id="task-category" className="w-full">
-                      <SelectValue placeholder="Select a category" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {categories.map((category) => (
-                        <SelectItem key={category.id} value={category.id}>
-                          {category.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                )}
-                <p className="text-sm text-muted-foreground">
-                  Choose a category to see its skills.
-                </p>
-              </Field>
-            ) : null}
-            {requiredAssignee && categoryId ? (
-              <Field>
-                <FieldLabel>Required skills</FieldLabel>
-                {skillsQuery.isLoading ? (
-                  <p className="text-sm text-muted-foreground">
-                    Loading skills…
-                  </p>
-                ) : skillsQuery.isError ? (
-                  <FieldError>
-                    {errorMessage(skillsQuery.error, "Unable to load skills.")}
-                  </FieldError>
-                ) : (
-                  <SkillCheckboxGroup
-                    skills={categorySkills}
-                    selectedSkillIds={skillIds}
-                    onChange={(ids) => {
-                      setSkillsTouched(true);
-                      setSkillIds(ids);
-                      setAssigneeId(UNASSIGNED);
-                      setAssigneeWasChosen(false);
-                    }}
-                    idPrefix="new-task"
-                  />
-                )}
-              </Field>
-            ) : null}
-            {requiredAssignee && skillIds.length > 0 ? (
-              <Field>
-                <FieldLabel htmlFor="task-assignee">Assignee</FieldLabel>
-                {developersQuery.isLoading ? (
-                  <p className="text-sm text-muted-foreground">
-                    Loading developers…
-                  </p>
-                ) : developersQuery.isError ? (
-                  <FieldError>
-                    {errorMessage(
-                      developersQuery.error,
-                      "Unable to load developers.",
-                    )}
-                  </FieldError>
-                ) : (
-                  <>
-                    <Select
-                      value={
-                        selectedAssigneeId === UNASSIGNED
-                          ? undefined
-                          : selectedAssigneeId
-                      }
-                      onValueChange={(value) => {
-                        setAssigneeId(value);
-                        setAssigneeWasChosen(true);
-                      }}
-                    >
-                      <SelectTrigger id="task-assignee" className="w-full">
-                        <SelectValue placeholder="Select an assignee" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {eligibleDevelopers.map((developer) => {
-                          const workload = incompleteTaskCount(
-                            tasks,
-                            developer.id,
-                          );
-                          return (
-                            <SelectItem key={developer.id} value={developer.id}>
-                              {developer.name} ({workloadLabel(workload)})
-                            </SelectItem>
-                          );
-                        })}
-                      </SelectContent>
-                    </Select>
-                    <p className="text-sm text-muted-foreground">
-                      {eligibleDevelopers.length === 0
-                        ? "No developer has all selected skills. Choose different skills or turn off Required assignee."
-                        : "Qualified developers are ordered by the fewest incomplete tasks."}
-                    </p>
-                  </>
-                )}
-              </Field>
-            ) : null}
+            <TaskAssignmentFields
+              idPrefix="new-task"
+              value={assignment}
+              onChange={setAssignment}
+            />
             {createTask.isError ? (
               <FieldError>
                 {errorMessage(createTask.error, "Unable to create task.")}
@@ -339,13 +143,7 @@ export function TasksPage() {
             ) : null}
             <Button
               type="submit"
-              disabled={
-                isCreating ||
-                (requiredAssignee &&
-                  (!categoryId ||
-                    skillIds.length === 0 ||
-                    selectedAssigneeId === UNASSIGNED))
-              }
+              disabled={isCreating || !isTaskAssignmentComplete(assignment)}
             >
               {isCreating ? "Adding…" : "Add task"}
             </Button>

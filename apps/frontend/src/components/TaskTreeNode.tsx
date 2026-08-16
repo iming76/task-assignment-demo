@@ -20,6 +20,8 @@ import {
 
 import { ApiClientError } from "../api";
 import { useCreateTask, usePatchTask } from "../hooks/tasks";
+import { errorMessage } from "../lib/error-message";
+import { developerName, skillName } from "../lib/lookup";
 import type { TaskTreeNode as TaskTreeNodeModel } from "../lib/task-tree";
 import {
   emptyTaskAssignment,
@@ -27,10 +29,6 @@ import {
   TaskAssignmentFields,
   taskAssignmentFromTask,
 } from "./TaskAssignmentFields";
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof ApiClientError ? error.message : fallback;
-}
 
 const STATUS_CONFLICT_GUIDANCE: Record<string, string> = {
   SUBTASKS_INCOMPLETE:
@@ -77,12 +75,6 @@ export function TaskTreeNodeView({
   const [childTitle, setChildTitle] = useState("");
   const [childDescription, setChildDescription] = useState("");
   const [childAssignment, setChildAssignment] = useState(emptyTaskAssignment);
-
-  const skillName = (skillId: string) =>
-    skills.find((skill) => skill.id === skillId)?.name ?? skillId;
-  const assigneeName = (assigneeId: string | null) =>
-    developers.find((developer) => developer.id === assigneeId)?.name ??
-    assigneeId;
 
   function startEdit() {
     setEditTitle(task.title);
@@ -250,7 +242,7 @@ export function TaskTreeNodeView({
                   ) : (
                     task.requiredSkillIds.map((skillId) => (
                       <Badge key={skillId} variant="secondary">
-                        {skillName(skillId)}
+                        {skillName(skills, skillId)}
                       </Badge>
                     ))
                   )}
@@ -258,7 +250,7 @@ export function TaskTreeNodeView({
                 <p className="text-sm text-muted-foreground">
                   Assignee:{" "}
                   {task.assigneeId
-                    ? assigneeName(task.assigneeId)
+                    ? developerName(developers, task.assigneeId)
                     : "Unassigned"}
                 </p>
               </>

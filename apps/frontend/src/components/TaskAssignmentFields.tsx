@@ -12,11 +12,11 @@ import {
   SelectValue,
 } from "@repo/ui";
 
-import { ApiClientError } from "../api";
 import { useCategories } from "../hooks/categories";
 import { useDevelopers } from "../hooks/developers";
 import { useSkills } from "../hooks/skills";
 import { useTasks } from "../hooks/tasks";
+import { errorMessage } from "../lib/error-message";
 import { SkillCheckboxGroup } from "./SkillCheckboxGroup";
 
 export interface TaskAssignmentValue {
@@ -59,10 +59,6 @@ export function isTaskAssignmentComplete(value: TaskAssignmentValue): boolean {
       value.skillIds.length > 0 &&
       value.assigneeId !== null)
   );
-}
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof ApiClientError ? error.message : fallback;
 }
 
 function incompleteTaskCount(tasks: Task[], developerId: string): number {

@@ -18,6 +18,7 @@ import { ApiClientError } from "../api";
 import { useOrchestrateAgentTask } from "../hooks/agent-task";
 import { useDevelopers } from "../hooks/developers";
 import { useSkills } from "../hooks/skills";
+import { developerName, skillName } from "../lib/lookup";
 
 const SIMPLE_TASK_TEMPLATE = `As a visitor, I want to see a responsive homepage so that I can easily navigate on both
 desktop and mobile devices.`;
@@ -77,11 +78,6 @@ export function AgentTaskFlow({
   const skillsQuery = useSkills();
   const developers = developersQuery.data ?? [];
   const skills = skillsQuery.data ?? [];
-  const skillName = (skillId: string) =>
-    skills.find((skill) => skill.id === skillId)?.name ?? skillId;
-  const assigneeName = (assigneeId: string) =>
-    developers.find((developer) => developer.id === assigneeId)?.name ??
-    assigneeId;
   const [messages, setMessages] = useState<AgentTaskMessage[]>([]);
   const [input, setInput] = useState("");
   const [created, setCreated] = useState<AgentTaskCreatedResponse | null>(null);
@@ -131,14 +127,14 @@ export function AgentTaskFlow({
                     <div className="mt-1 flex flex-wrap items-center gap-1.5">
                       {task.requiredSkillIds.map((skillId) => (
                         <Badge key={skillId} variant="secondary">
-                          {skillName(skillId)}
+                          {skillName(skills, skillId)}
                         </Badge>
                       ))}
                     </div>
                   ) : null}
                   <p className="mt-1 text-xs text-muted-foreground">
                     {task.assigneeId
-                      ? `Assigned: ${assigneeName(task.assigneeId)}`
+                      ? `Assigned: ${developerName(developers, task.assigneeId)}`
                       : "Unassigned"}
                   </p>
                 </li>
@@ -155,7 +151,9 @@ export function AgentTaskFlow({
                     <li key={gap.taskId}>
                       {gap.taskTitle} requires {gap.requiredRole}
                       {gap.requiredSkillIds.length > 0
-                        ? ` (${gap.requiredSkillIds.map(skillName).join(", ")})`
+                        ? ` (${gap.requiredSkillIds
+                            .map((skillId) => skillName(skills, skillId))
+                            .join(", ")})`
                         : ""}
                     </li>
                   ))}

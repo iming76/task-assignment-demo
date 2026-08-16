@@ -13,21 +13,21 @@ Starts after [Add Task Tree UI](./05c-add-task-tree-ui.md) and [Add Agent Planni
 
 ## Outcome
 
-Deliver the `/agent-task` generate-review-edit-apply workflow with an explicit discard path.
+Deliver the `/agent-task` conversational clarification-and-creation workflow.
 
 ## Scope
 
-- [ ] Accept a natural-language description and request a proposal only through the typed backend client.
-- [ ] Render and edit recursive draft names, descriptions, skills, assignees, and subtasks before persistence.
-- [ ] Require an explicit apply or discard decision; generation alone must not alter the task list.
-- [ ] Show ineligible/no-match assignees as unassigned and surface apply-time validation errors.
+- [ ] Submit a bounded natural-language conversation only through the typed backend client.
+- [ ] Preserve and render clarification turns until the backend creates the plan.
+- [ ] Render persisted tasks and structured required-role warnings after creation.
+- [ ] Show no-match assignees as unassigned without presenting successful creation as failed.
 - [ ] Present a useful unavailable state when planning is not configured while leaving the rest of the app usable.
-- [ ] Test generation, three-level preview, edits, discard, apply, unavailable, mismatch, and no-eligible-developer states.
+- [ ] Test repeated clarification, created tasks, staffing gaps, unavailable, and validation states.
 
 ## Acceptance checks
 
 - [ ] No provider key or provider SDK is shipped to the browser.
-- [ ] The user always reviews the complete draft before apply.
+- [ ] The browser never sends a second apply mutation or assigns developers locally.
 
 ## Unlocks
 

@@ -144,66 +144,26 @@ enforce the same reference rules.
 
 ## Agent-Assisted Task Planning
 
-`/agent-task` accepts a natural-language description and asks a backend agent
-to propose a task tree. The proposal contains root tasks and subtasks, canonical
-`requiredSkillIds`, and an optional `assigneeId` for each task. The agent
-receives the current categorized skill catalog, including skill descriptions,
-and the developer catalog as controlled context so it can select only known
-skills and skill-eligible developers.
+`/agent-task` accepts a bounded natural-language conversation and calls the
+single backend orchestration endpoint. If essential details are missing, the
+page displays the agent's clarification question, retains the conversation in
+local state, and submits the user's follow-up with the prior turns.
 
-The user-facing proposal follows this recursive shape:
+When the request is sufficiently clear, the backend agent first loads the
+complete canonical skill list with current names and descriptions. The
+backend—not the browser or model—revalidates selected IDs, ranks fully qualified
+developers by active workload, and creates the complete recursive tree in one
+transaction. The response contains persisted flat `Task` records, which retain
+`parentTaskId` and `depth` for hierarchical display.
 
-```xml
-<Task>
-  <name>Implement Task Assignment System</name>
-  <description>
-    Develop a task assignment system that assigns work based on skills and
-    availability.
-  </description>
-  <SubTaskList>
-    <SubTask>
-      <name>Frontend</name>
-      <description>Develop the frontend using React and TypeScript.</description>
-      <assignedDeveloper>John Doe</assignedDeveloper>
-      <requiredSkills>
-        <skill>JavaScript</skill>
-        <skill>React</skill>
-      </requiredSkills>
-    </SubTask>
-    <SubTask>
-      <name>Backend</name>
-      <description>Develop the backend using Node.js and Fastify.</description>
-      <assignedDeveloper>John Doe</assignedDeveloper>
-      <requiredSkills>
-        <skill>Node.js</skill>
-        <skill>Fastify</skill>
-      </requiredSkills>
-    </SubTask>
-  </SubTaskList>
-</Task>
-```
+The page treats missing staffing as a successful outcome. Each task without a
+qualified developer remains visibly unassigned, and a structured warning names
+the required role and skill IDs, such as `AI Engineer`. The page has no draft
+editor or separate apply/discard request.
 
-This XML illustrates the presentation shape, not the API wire format. The typed
-draft uses JSON and canonical IDs: `name` maps to `Task.title`,
-`assignedDeveloper` maps to `assigneeId`, and each displayed skill name maps to
-an entry in `requiredSkillIds`. On apply, the backend flattens the recursive
-draft into `Task` records linked by `parentTaskId`. Subtasks use the same draft
-shape recursively, so the hierarchy is not limited to one level.
-
-The page presents the proposal as a draft before any tasks are created. The
-user can review and correct titles, descriptions, hierarchy, required skills,
-and assignments, then explicitly apply or discard the complete plan. A task
-remains unassigned when no developer has every required skill; the agent must
-not choose a partial match merely to fill the field.
-
-Agent orchestration belongs in the backend behind a typed API contract. The
-frontend never sends provider credentials, calls an LLM provider directly, or
-treats generated identifiers as trusted. When the user applies a draft, the
-backend resolves every identifier against current data, rechecks assignment
-eligibility and hierarchy invariants, and creates the plan transactionally so a
-partial task tree is not left behind after a failure. This capability requires
-a dedicated backend contract in addition to the existing per-task skill
-inference behavior.
+Agent orchestration stays in the backend behind the shared discriminated API
+contract. The frontend never sends provider credentials, calls a provider
+directly, chooses assignments, or treats generated identifiers as trusted.
 
 ## Boundaries
 

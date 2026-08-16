@@ -57,22 +57,27 @@ join tables (`developer_skills`, `task_skills`) flattened into `skillIds` /
 Each `Skill` includes `description` and `categoryId`. Categories are normalized
 resources rather than hardcoded string enums.
 
-Agent planning uses a recursive `AgentTaskDraft` DTO from the same shared
-package:
+Agent planning uses a bounded conversation and discriminated response from the
+same shared package:
 
 ```ts
-interface AgentTaskDraft {
-  name: string;
-  description: string;
-  assigneeId?: string | null;
-  requiredSkillIds: string[];
-  subtasks: AgentTaskDraft[];
+interface AgentTaskRequest {
+  messages: Array<{ role: "user" | "assistant"; content: string }>;
 }
+
+type AgentTaskResponse =
+  | { status: "needs_clarification"; question: string }
+  | {
+      status: "created";
+      message: string;
+      tasks: Task[];
+      staffingGaps: AgentTaskStaffingGap[];
+    };
 ```
 
-The draft uses `name` for the user-facing proposal. Applying it maps `name` to
-`Task.title` and persists a flat set of `Task` records linked through
-`parentTaskId`.
+Created outcomes return the flat persisted `Task` records linked through
+`parentTaskId`, plus structured details for valid tasks that could not be
+assigned.
 
 ## Endpoints
 
@@ -329,93 +334,88 @@ List categories for skill forms and agent context.
 - `200 OK` — returns the `Category`.
 - `404 NOT_FOUND` — no category with that id.
 
-### `POST /agent-task/proposals`
+### `POST /agent-task`
 
-Generate a reviewable task-tree draft from a natural-language description. The
-backend supplies the current categorized skill catalog and developer catalog
-to the configured agent. This endpoint never persists tasks.
-
-**Request body**
-
-```json
-{
-  "description": "Build a task assignment system with a React frontend and a Fastify API."
-}
-```
-
-- `description` — required, non-empty natural-language project or work
-  description.
-
-**Response body**
-
-```json
-{
-  "tasks": [
-    {
-      "name": "Build the frontend",
-      "description": "Create the React task-management experience.",
-      "assigneeId": "dev-alice",
-      "requiredSkillIds": ["skill-react"],
-      "subtasks": []
-    }
-  ]
-}
-```
-
-The response is an editable draft, not persisted state. Every skill and
-developer identifier must come from the supplied catalogs. When no developer
-covers every required skill, `assigneeId` is omitted or `null`; the agent must
-not choose a partial match.
-
-**Responses**
-
-- `200 OK` — returns `{ tasks: AgentTaskDraft[] }` after runtime-schema and
-  canonical-ID validation.
-- `400 VALIDATION_ERROR` — `description` is missing or empty.
-- `503 AGENT_UNAVAILABLE` — planning is not configured, times out, fails, or
-  produces no valid draft. No task is created.
-
-### `POST /agent-task/apply`
-
-Apply a reviewed task-tree draft. This endpoint does not call the agent. It
-treats the submitted draft as untrusted input, resolves every referenced ID
-against current data, rechecks assignment eligibility, and creates all root
-tasks and descendants in one transaction.
+Process a bounded natural-language conversation. The agent must load the
+complete current skill list with names and descriptions before selecting canonical
+skill IDs. It either asks one clarification question or returns a structured
+plan that the backend validates, assigns, and persists atomically.
 
 **Request body**
 
 ```json
 {
-  "tasks": [
+  "messages": [
     {
-      "name": "Build the frontend",
-      "description": "Create the React task-management experience.",
-      "assigneeId": "dev-alice",
-      "requiredSkillIds": ["skill-react"],
-      "subtasks": []
+      "role": "user",
+      "content": "Build profile editing with AI image moderation."
     }
   ]
 }
 ```
 
-- `tasks` — required, non-empty array of recursive `AgentTaskDraft` values.
-- Every created task starts as `"TODO"`.
-- The backend maps the recursive draft to flat `Task` records and assigns each
-  child the newly created parent task's ID.
-- Any validation or persistence failure rolls back the complete operation; a
-  partial tree is never retained.
+- `messages` — 1–20 non-empty user/assistant messages, beginning and ending
+  with a user message. Follow-ups include the prior assistant question.
+
+**Clarification response (`200`)**
+
+```json
+{
+  "status": "needs_clarification",
+  "question": "Which profile fields should users edit?"
+}
+```
+
+Clarification performs no writes. The client appends the question and answer to
+the next request's conversation.
+
+**Created response (`201`)**
+
+```json
+{
+  "status": "created",
+  "message": "Created 1 task. One task remains unassigned and requires AI Engineer.",
+  "tasks": [
+    {
+      "id": "task-1",
+      "title": "Build AI image moderation",
+      "description": "Detect unsafe profile images.",
+      "status": "TODO",
+      "depth": 1,
+      "assigneeId": null,
+      "parentTaskId": null,
+      "requiredSkillIds": ["skill-ai"]
+    }
+  ],
+  "staffingGaps": [
+    {
+      "taskId": "task-1",
+      "taskTitle": "Build AI image moderation",
+      "requiredRole": "AI Engineer",
+      "requiredSkillIds": ["skill-ai"]
+    }
+  ]
+}
+```
+
+- Each node is assigned only when a current developer covers every required
+  skill. Eligible developers are ranked by non-completed workload and stable
+  ID, with in-request workload increments.
+- A valid node with no qualified developer is created with `assigneeId: null`
+  and reported in `staffingGaps`; this is not an error.
+- Unsearched, unknown, or stale generated skill IDs are rejected.
+- Any invalid plan or persistence failure rolls back the complete tree.
 
 **Responses**
 
-- `201 Created` — returns the created `Task[]` as a flat array.
-- `400 VALIDATION_ERROR` — the draft is empty or malformed, or a title or
-  description is empty.
-- `404 NOT_FOUND` — a referenced skill or developer no longer exists.
-- `409 SKILL_MISMATCH` — an assignee does not cover every required skill for
-  its task.
+- `200 OK` — clarification outcome; no task is created.
+- `201 Created` — persisted tasks and staffing gaps.
+- `400 VALIDATION_ERROR` — malformed or over-limit conversation.
+- `503 AGENT_UNAVAILABLE` — planning is unavailable or produces an invalid
+  decision; no partial task tree is retained.
 
 ## Non-goals
 
-- Search, filtering, and pagination are not required for the assignment-sized
-  dataset and are out of scope.
-- Persisting an agent proposal before explicit user approval is out of scope.
+- Search, filtering, and pagination for resource endpoints are out of scope.
+- Embeddings, persistent conversations, developer calendars/capacity, and
+  durable orchestration idempotency are out of scope.

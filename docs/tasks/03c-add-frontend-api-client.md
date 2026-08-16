@@ -13,7 +13,7 @@ Starts after [Add Shared API Contracts](./02b-add-shared-api-contracts.md) and [
 
 ## Outcome
 
-Create one typed browser API boundary for resource CRUD and agent proposal/apply calls.
+Create one typed browser API boundary for resource CRUD and agent orchestration calls.
 
 ## Scope
 

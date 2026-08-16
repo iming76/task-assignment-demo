@@ -20,11 +20,10 @@ Task Assignment routes work to the developer who can actually do it. Every task 
   inference fails, creation still succeeds with no required skills and the task
   remains visibly untagged until a user supplies them.
 - **Agent-assisted planning** — a user can describe a larger body of work and
-  receive a recursive task-and-assignment draft based on the current skill and
-  developer catalogs. Nothing is persisted during generation: the user reviews
-  and edits the complete plan, then explicitly applies it. The backend
-  revalidates every identifier and assignment and creates the tree
-  transactionally.
+  answer clarification questions when needed. The agent discovers canonical
+  skills by loading their names and descriptions; the backend validates the plan, assigns qualified
+  developers by workload, and creates the tree transactionally. Work without a
+  qualified developer remains unassigned and is reported as a staffing gap.
 
 ## Where to start
 

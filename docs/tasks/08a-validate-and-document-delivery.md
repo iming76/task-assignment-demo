@@ -17,8 +17,8 @@ Prove the integrated product from a clean checkout and finish operator/developer
 
 ## Scope
 
-- [ ] Smoke-test resource CRUD, assignment validation, three-level nesting, completion ordering, inference fallback, agent unavailable behavior, and transactional reviewed-plan apply.
-- [ ] Exercise the equivalent browser flows, including filtering, recursion, confirmation, planning review, and unavailable state.
+- [ ] Smoke-test resource CRUD, assignment validation, three-level nesting, completion ordering, inference fallback, agent unavailable behavior, and transactional orchestration.
+- [ ] Exercise the equivalent browser flows, including filtering, recursion, confirmation, clarification, created staffing gaps, and unavailable state.
 - [ ] Run unit, integration, component, architecture, Storybook, build, lint, type-check, and strict OpenSpec validation commands.
 - [ ] Verify normal Compose data contains application seed IDs and no test fixture IDs.
 - [ ] Update README with layout, rationale, one-command setup, local development, tests, API, environment, architecture, UI ownership, and troubleshooting.

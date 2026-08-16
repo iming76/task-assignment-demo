@@ -31,13 +31,12 @@ boundaries.
 
 ## LLM output is validated before it's trusted
 
-LLM output is always a proposal, never an authority. Automatic skill inference
-is checked against real `Skill` entities before anything is persisted; a failed
-or malformed inference call degrades gracefully rather than blocking ordinary
-task creation. Agent-assisted task plans remain editable drafts until the user
-explicitly applies them. Applying a plan resolves every generated identifier
-against current data, rechecks assignment and hierarchy rules, and creates the
-entire tree transactionally. See
+LLM output is never an authority. Automatic skill inference is checked against
+real `Skill` entities before anything is persisted. Agent orchestration first
+loads the complete canonical skill catalog with names and descriptions, then the backend resolves every
+selected identifier against current data, chooses only fully qualified
+developers using deterministic workload ranking, and creates the entire tree
+transactionally. Clarification and provider failure perform no writes. See
 [Frontend Architecture — Agent-Assisted Task Planning](../architecture/frontend.md#agent-assisted-task-planning)
 and [Add Task Skill Inference](../tasks/05b-add-task-skill-inference.md).
 

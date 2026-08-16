@@ -13,20 +13,20 @@ Starts after [Add Shared Domain Types](./01b-add-shared-domain-types.md).
 
 ## Outcome
 
-Add the canonical request, response, recursive agent-draft, and public error DTOs to `@repo/shared-types`.
+Add canonical resource, conversational agent-task, and public error DTOs to `@repo/shared-types`.
 
 ## Scope
 
 - [ ] Define create and patch task inputs, preserving omitted `requiredSkillIds` versus explicit `[]`.
 - [ ] Define developer, skill, category, and task endpoint response types.
-- [ ] Define recursive agent proposal/apply request and response DTOs with arbitrary depth.
+- [ ] Define agent conversation, clarification, created-task, and staffing-gap DTOs.
 - [ ] Define the consistent error envelope and all documented error codes.
 - [ ] Add compile fixtures for valid payloads and rejected invalid shapes.
 - [ ] Add an architecture check that prevents application code from redeclaring public contracts.
 
 ## Acceptance checks
 
-- [ ] Recursive DTOs and omission semantics survive consumer compilation.
+- [ ] Agent outcome discrimination and omission semantics survive consumer compilation.
 - [ ] The package remains framework-, ORM-, and provider-independent.
 
 ## Unlocks

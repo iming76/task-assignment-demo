@@ -13,22 +13,22 @@ Starts after [Add Resource Read API](./04a-add-resource-read-api.md) and [Add Ta
 
 ## Outcome
 
-Generate reviewable recursive task drafts without writes and atomically apply reviewed drafts after fresh validation.
+Clarify incomplete requests or atomically create a catalog-grounded recursive task tree after fresh validation.
 
 ## Scope
 
-- [ ] Add typed proposal/apply endpoints and an injectable planning-service boundary.
-- [ ] Generate structured recursive drafts using current skills and developers; reject unknown IDs and clear ineligible generated assignees.
-- [ ] Keep proposal generation write-free and map configuration/provider failures to safe `AGENT_UNAVAILABLE` responses.
-- [ ] Revalidate every edited ID and assignment during apply without calling the provider.
-- [ ] Flatten and create the complete `TODO` tree transactionally, rolling back on any failure.
+- [ ] Add one typed conversational endpoint and an injectable orchestration-provider boundary.
+- [ ] Load the complete current skill list with names and descriptions before generating a structured recursive decision.
+- [ ] Return clarification without writes and map configuration/provider failures to safe `AGENT_UNAVAILABLE` responses.
+- [ ] Revalidate every selected skill ID and derive assignment from exact coverage plus active workload.
+- [ ] Flatten and create the complete `TODO` tree transactionally, leaving no-match nodes unassigned and reporting staffing gaps.
 - [ ] Apply timeout, request/output-size, traversal, and sanitized logging protections.
-- [ ] Test multi-root three-level plans, no-write generation, unavailable behavior, edits, stale IDs, mismatch, and rollback with fakes.
+- [ ] Test multi-root plans, clarification, unavailable behavior, stale IDs, workload assignment, staffing gaps, and rollback with fakes.
 
 ## Acceptance checks
 
-- [ ] Generation never persists and apply never trusts generated or client-edited identifiers.
-- [ ] Deterministic apply remains available without an LLM key.
+- [ ] Clarification never persists and creation never trusts generated identifiers.
+- [ ] No-match staffing does not block otherwise valid creation.
 
 ## Unlocks
 

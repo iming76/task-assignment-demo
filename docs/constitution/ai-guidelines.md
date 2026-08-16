@@ -30,10 +30,11 @@ When a change is meant to follow TDD, tests should be visibly written and failin
 
 Don't move the assignment or status checks into the frontend "for simplicity" — see [Architecture](./architecture.md#business-rules-are-enforced-server-side-never-trusted-from-the-frontend). A frontend-only check is a UX nicety, not a substitute for the server-side rule.
 
-## Keep generated plans reviewable
+## Keep generated plans constrained
 
-The `/agent-task` experience must present generated task trees as editable
-drafts and require an explicit apply action. Do not persist during generation
-or let generated skill and developer identifiers bypass current database and
-business-rule checks. See
+The `/agent-task` experience may create a generated task tree only after the
+agent searches canonical skills. The backend must validate every selected ID,
+choose eligible developers deterministically, and commit the complete tree in
+one transaction. Missing developers remain unassigned and are reported as
+staffing gaps; the model never writes directly. See
 [Frontend Architecture — Agent-Assisted Task Planning](../architecture/frontend.md#agent-assisted-task-planning).

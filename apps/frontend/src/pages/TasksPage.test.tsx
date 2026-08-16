@@ -20,7 +20,9 @@ function mockApi(
       const url = typeof input === "string" ? input : input.toString();
       const path = url.replace(DEFAULT_API_BASE_URL, "");
       const key = `${init?.method ?? "GET"} ${path}`;
-      const entry = responses[key];
+      const entry =
+        responses[key] ??
+        (key === "GET /categories" ? { status: 200, body: [] } : undefined);
       if (!entry) {
         throw new Error(`Unhandled request: ${key}`);
       }
@@ -155,7 +157,7 @@ describe("TasksPage", () => {
     );
   });
 
-  it("sends an explicit empty requiredSkillIds when the user touches and clears skill selection", async () => {
+  it("requires complete assignment choices when an assignee is required", async () => {
     const user = userEvent.setup();
     mockApi({
       "GET /tasks": { status: 200, body: [] },
@@ -166,29 +168,145 @@ describe("TasksPage", () => {
           { id: "s1", name: "React", description: "UI", categoryId: "c1" },
         ],
       },
-      "POST /tasks": { status: 201, body: root },
+      "GET /categories": {
+        status: 200,
+        body: [{ id: "c1", name: "Frontend" }],
+      },
     });
 
     renderWithQueryClient(<TasksPage />);
     await screen.findByText("No tasks yet");
 
-    await user.type(screen.getByLabelText("Title"), "Root");
-    await user.type(screen.getByLabelText("Description"), "Root task.");
+    const addButton = screen.getByRole("button", { name: "Add task" });
+    expect(screen.queryByLabelText("Category")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("switch", { name: "Required assignee" }));
+    expect(addButton).toBeDisabled();
+    await user.click(screen.getByLabelText("Category"));
+    await user.click(screen.getByRole("option", { name: "Frontend" }));
     const checkbox = await screen.findByRole("checkbox", { name: "React" });
     await user.click(checkbox);
     await user.click(checkbox);
+    expect(addButton).toBeDisabled();
+  });
+
+  it("filters skills by category and recommends an eligible developer with the lowest incomplete workload", async () => {
+    const user = userEvent.setup();
+    const busyTask = {
+      ...root,
+      id: "busy-task",
+      title: "Busy task",
+      assigneeId: "d-busy",
+    };
+    const completedTask = {
+      ...root,
+      id: "completed-task",
+      title: "Completed task",
+      status: "DONE",
+      assigneeId: "d-available",
+    };
+    const createdTask = {
+      ...root,
+      id: "created-task",
+      title: "Build form",
+      requiredSkillIds: ["s-react"],
+    };
+
+    mockApi({
+      "GET /tasks": {
+        status: 200,
+        body: [busyTask, completedTask],
+      },
+      "GET /categories": {
+        status: 200,
+        body: [
+          { id: "c-frontend", name: "Frontend" },
+          { id: "c-backend", name: "Backend" },
+        ],
+      },
+      "GET /skills": {
+        status: 200,
+        body: [
+          {
+            id: "s-react",
+            name: "React",
+            description: "UI",
+            categoryId: "c-frontend",
+          },
+          {
+            id: "s-node",
+            name: "Node.js",
+            description: "API",
+            categoryId: "c-backend",
+          },
+        ],
+      },
+      "GET /developers": {
+        status: 200,
+        body: [
+          { id: "d-busy", name: "Busy Dev", skillIds: ["s-react"] },
+          {
+            id: "d-available",
+            name: "Available Dev",
+            skillIds: ["s-react"],
+          },
+          { id: "d-backend", name: "Backend Dev", skillIds: ["s-node"] },
+        ],
+      },
+      "POST /tasks": { status: 201, body: createdTask },
+      "PATCH /tasks/created-task": {
+        status: 200,
+        body: { ...createdTask, assigneeId: "d-available" },
+      },
+    });
+
+    renderWithQueryClient(<TasksPage />);
+    await screen.findByText("Busy task");
+
+    expect(
+      screen.queryByRole("checkbox", { name: "React" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByLabelText("Category")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("switch", { name: "Required assignee" }));
+    await user.click(screen.getByLabelText("Category"));
+    await user.click(screen.getByRole("option", { name: "Frontend" }));
+
+    expect(
+      await screen.findByRole("checkbox", { name: "React" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("checkbox", { name: "Node.js" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: "React" }));
+    expect(screen.getByLabelText("Assignee")).toHaveTextContent(
+      "Available Dev (0 incomplete tasks)",
+    );
+
+    await user.click(screen.getByLabelText("Assignee"));
+    expect(
+      screen.getByRole("option", {
+        name: "Available Dev (0 incomplete tasks)",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "Busy Dev (1 incomplete task)" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("option", { name: /Backend Dev/ }),
+    ).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+
+    await user.type(screen.getByLabelText("Title"), "Build form");
+    await user.type(screen.getByLabelText("Description"), "Create task form.");
     await user.click(screen.getByRole("button", { name: "Add task" }));
 
     await waitFor(() =>
       expect(fetch).toHaveBeenCalledWith(
-        `${DEFAULT_API_BASE_URL}/tasks`,
+        `${DEFAULT_API_BASE_URL}/tasks/created-task`,
         expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({
-            title: "Root",
-            description: "Root task.",
-            requiredSkillIds: [],
-          }),
+          method: "PATCH",
+          body: JSON.stringify({ assigneeId: "d-available" }),
         }),
       ),
     );

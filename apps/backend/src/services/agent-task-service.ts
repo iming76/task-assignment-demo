@@ -81,12 +81,12 @@ export function createAgentTaskService(
         taskRepository.countActiveAssignmentsByDeveloper(tx),
       ]);
       const currentSkillIds = new Set(currentSkills.map((skill) => skill.id));
-      validatePlanSkills(decision.tasks, listedSkillIds, currentSkillIds);
+      validatePlanSkills([decision.task], listedSkillIds, currentSkillIds);
 
       const tasks: Task[] = [];
       const staffingGaps: AgentTaskStaffingGap[] = [];
       await createTree(
-        decision.tasks,
+        [decision.task],
         null,
         1,
         developers,
@@ -116,12 +116,10 @@ export function createAgentTaskService(
     }
     for (const node of nodes) {
       const requiredSkillIds = [...new Set(node.requiredSkillIds)];
-      const assignee = selectAssignee(
-        node,
-        requiredSkillIds,
-        developers,
-        workloads,
-      );
+      const isGroup = node.subtasks.length > 0;
+      const assignee = isGroup
+        ? undefined
+        : selectAssignee(node, requiredSkillIds, developers, workloads);
       const task = await taskRepository.create(
         {
           title: node.title,
@@ -136,7 +134,7 @@ export function createAgentTaskService(
       created.push(task);
       if (assignee) {
         workloads.set(assignee.id, (workloads.get(assignee.id) ?? 0) + 1);
-      } else {
+      } else if (!isGroup) {
         staffingGaps.push({
           taskId: task.id,
           taskTitle: task.title,

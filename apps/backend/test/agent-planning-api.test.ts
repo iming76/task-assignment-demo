@@ -144,11 +144,9 @@ describe("agent orchestration api", () => {
     const provider = new FakeAgentOrchestrationProvider(async () => ({
       decision: {
         action: "create_task_tree",
-        tasks: [
-          node({
-            subtasks: [node({ title: "Child task", requiredSkillIds: [] })],
-          }),
-        ],
+        task: node({
+          subtasks: [node({ title: "Child task" })],
+        }),
       },
       skillCatalogListed: true,
     }));
@@ -164,7 +162,8 @@ describe("agent orchestration api", () => {
     const body = response.json() as AgentTaskCreatedResponse;
     expect(body.status).toBe("created");
     expect(body.tasks).toHaveLength(2);
-    expect(body.tasks[0].assigneeId).toBe(testSeedIds.developers.graceHopper);
+    expect(body.tasks[0].assigneeId).toBeNull();
+    expect(body.tasks[1].assigneeId).toBe(testSeedIds.developers.graceHopper);
     expect(body.tasks[1].parentTaskId).toBe(body.tasks[0].id);
     expect(body.staffingGaps).toEqual([]);
   });
@@ -211,13 +210,15 @@ describe("agent orchestration api", () => {
     const provider = new FakeAgentOrchestrationProvider(async () => ({
       decision: {
         action: "create_task_tree",
-        tasks: [
-          node({
-            title: "AI image moderation",
-            requiredSkillIds: [aiSkillId],
-            requiredRole: "AI Engineer",
-          }),
-        ],
+        task: node({
+          subtasks: [
+            node({
+              title: "AI image moderation",
+              requiredSkillIds: [aiSkillId],
+              requiredRole: "AI Engineer",
+            }),
+          ],
+        }),
       },
       skillCatalogListed: true,
     }));
@@ -233,6 +234,7 @@ describe("agent orchestration api", () => {
     expect(response.statusCode).toBe(201);
     const body = response.json() as AgentTaskCreatedResponse;
     expect(body.tasks[0].assigneeId).toBeNull();
+    expect(body.tasks[1].assigneeId).toBeNull();
     expect(body.staffingGaps[0]).toMatchObject({
       taskTitle: "AI image moderation",
       requiredRole: "AI Engineer",
@@ -243,7 +245,7 @@ describe("agent orchestration api", () => {
 
   it("rejects creation without catalog inspection", async () => {
     const provider = new FakeAgentOrchestrationProvider(async () => ({
-      decision: { action: "create_task_tree", tasks: [node()] },
+      decision: { action: "create_task_tree", task: node() },
       skillCatalogListed: false,
     }));
     const response = await buildTestApp({ provider }).inject({
@@ -259,15 +261,13 @@ describe("agent orchestration api", () => {
     const provider = new FakeAgentOrchestrationProvider(async () => ({
       decision: {
         action: "create_task_tree",
-        tasks: [
-          node({
-            subtasks: [
-              node({
-                subtasks: [node({ subtasks: [node({ title: "Too deep" })] })],
-              }),
-            ],
-          }),
-        ],
+        task: node({
+          subtasks: [
+            node({
+              subtasks: [node({ subtasks: [node({ title: "Too deep" })] })],
+            }),
+          ],
+        }),
       },
       skillCatalogListed: true,
     }));
@@ -289,7 +289,7 @@ describe("agent orchestration api", () => {
     const invalidProvider = new FakeAgentOrchestrationProvider(async () => ({
       decision: {
         action: "create_task_tree",
-        tasks: [node({ requiredSkillIds: ["unknown-skill"] })],
+        task: node({ requiredSkillIds: ["unknown-skill"] }),
       },
       skillCatalogListed: true,
     }));
@@ -306,7 +306,7 @@ describe("agent orchestration api", () => {
     const provider = new FakeAgentOrchestrationProvider(async () => ({
       decision: {
         action: "create_task_tree",
-        tasks: [node({ subtasks: [node({ title: "Fail child" })] })],
+        task: node({ subtasks: [node({ title: "Fail child" })] }),
       },
       skillCatalogListed: true,
     }));

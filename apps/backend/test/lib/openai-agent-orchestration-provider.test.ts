@@ -38,7 +38,7 @@ interface MockAgentTools {
     };
     execute(input: {
       action: "create_task_tree";
-      tasks: unknown[];
+      task: unknown;
     }): Promise<unknown> | unknown;
   };
 }
@@ -54,16 +54,23 @@ describe("OpenAiAgentOrchestrationProvider", () => {
       expect(
         tools.submitDecision.inputSchema.safeParse({
           action: "create_task_tree",
-          tasks: [
-            {
-              title: "Build AI moderation",
-              description: "Detect unsafe images.",
-              requiredSkillIds: ["invented-skill"],
-              requiredRole: "AI Engineer",
-              unmatchedSkillRequirements: [],
-              subtasks: [],
-            },
-          ],
+          task: {
+            title: "Build AI moderation",
+            description: "Detect unsafe images.",
+            requiredSkillIds: [],
+            requiredRole: "Engineer",
+            unmatchedSkillRequirements: [],
+            subtasks: [
+              {
+                title: "Detect unsafe images",
+                description: "Detect unsafe images.",
+                requiredSkillIds: ["invented-skill"],
+                requiredRole: "AI Engineer",
+                unmatchedSkillRequirements: [],
+                subtasks: [],
+              },
+            ],
+          },
         }).success,
       ).toBe(false);
       const listedSkills = await tools.listSkills.execute({});
@@ -78,16 +85,23 @@ describe("OpenAiAgentOrchestrationProvider", () => {
       ]);
       await tools.submitDecision.execute({
         action: "create_task_tree",
-        tasks: [
-          {
-            title: "Build AI moderation",
-            description: "Detect unsafe images.",
-            requiredSkillIds: ["skill-ai"],
-            requiredRole: "AI Engineer",
-            unmatchedSkillRequirements: [],
-            subtasks: [],
-          },
-        ],
+        task: {
+          title: "Build AI moderation",
+          description: "Detect unsafe images.",
+          requiredSkillIds: [],
+          requiredRole: "Engineer",
+          unmatchedSkillRequirements: [],
+          subtasks: [
+            {
+              title: "Detect unsafe images",
+              description: "Detect unsafe images.",
+              requiredSkillIds: ["skill-ai"],
+              requiredRole: "AI Engineer",
+              unmatchedSkillRequirements: [],
+              subtasks: [],
+            },
+          ],
+        },
       });
       return {};
     });
@@ -105,16 +119,23 @@ describe("OpenAiAgentOrchestrationProvider", () => {
       expect(await tools.listSkills.execute({})).toEqual([]);
       await tools.submitDecision.execute({
         action: "create_task_tree",
-        tasks: [
-          {
-            title: "Build quantum integration",
-            description: "Integrate unsupported quantum hardware.",
-            requiredSkillIds: [],
-            requiredRole: "Quantum Engineer",
-            unmatchedSkillRequirements: ["quantum hardware"],
-            subtasks: [],
-          },
-        ],
+        task: {
+          title: "Build quantum integration",
+          description: "Integrate unsupported quantum hardware.",
+          requiredSkillIds: [],
+          requiredRole: "Engineer",
+          unmatchedSkillRequirements: [],
+          subtasks: [
+            {
+              title: "Integrate quantum hardware",
+              description: "Integrate unsupported quantum hardware.",
+              requiredSkillIds: [],
+              requiredRole: "Quantum Engineer",
+              unmatchedSkillRequirements: ["quantum hardware"],
+              subtasks: [],
+            },
+          ],
+        },
       });
       return {};
     });
@@ -131,16 +152,23 @@ describe("OpenAiAgentOrchestrationProvider", () => {
     mockGenerateText.mockImplementationOnce(async (rawOptions: unknown) => {
       await toolsFrom(rawOptions).submitDecision.execute({
         action: "create_task_tree",
-        tasks: [
-          {
-            title: "Task",
-            description: "Description",
-            requiredSkillIds: [],
-            requiredRole: "Engineer",
-            unmatchedSkillRequirements: ["unknown technology"],
-            subtasks: [],
-          },
-        ],
+        task: {
+          title: "Task",
+          description: "Description",
+          requiredSkillIds: [],
+          requiredRole: "Engineer",
+          unmatchedSkillRequirements: [],
+          subtasks: [
+            {
+              title: "Subtask",
+              description: "Description",
+              requiredSkillIds: [],
+              requiredRole: "Engineer",
+              unmatchedSkillRequirements: ["unknown technology"],
+              subtasks: [],
+            },
+          ],
+        },
       });
       return {};
     });

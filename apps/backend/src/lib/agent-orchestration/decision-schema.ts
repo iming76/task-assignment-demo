@@ -17,7 +17,7 @@ export interface PlannedTaskNode {
 
 export type AgentDecision = {
   action: "create_task_tree";
-  tasks: PlannedTaskNode[];
+  task: PlannedTaskNode;
 };
 
 const plannedTaskSchema: z.ZodType<PlannedTaskNode> = z.lazy(() =>
@@ -33,9 +33,20 @@ const plannedTaskSchema: z.ZodType<PlannedTaskNode> = z.lazy(() =>
   }),
 );
 
+const rootRequiresSubtasks = (node: PlannedTaskNode, ctx: z.RefinementCtx) => {
+  if (node.subtasks.length === 0) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      message:
+        "The root task represents the whole request and must be broken into at least one subtask.",
+      path: ["subtasks"],
+    });
+  }
+};
+
 export const agentDecisionSchema: z.ZodType<AgentDecision> = z.object({
   action: z.literal("create_task_tree"),
-  tasks: z.array(plannedTaskSchema).min(1),
+  task: plannedTaskSchema.superRefine(rootRequiresSubtasks),
 });
 
 export const agentDecisionOutputSchema = agentDecisionSchema;
@@ -62,7 +73,7 @@ export function createAgentDecisionOutputSchema(
   );
   return z.object({
     action: z.literal("create_task_tree"),
-    tasks: z.array(catalogPlannedTaskSchema).min(1),
+    task: catalogPlannedTaskSchema.superRefine(rootRequiresSubtasks),
   });
 }
 
@@ -98,6 +109,6 @@ export function validateAgentDecision(
       visit(node.subtasks, depth + 1);
     }
   };
-  visit(parsed.data.tasks, 1);
+  visit([parsed.data.task], 1);
   return parsed.data;
 }

@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { Link } from "react-router-dom";
 
 import type { Developer } from "@repo/shared-types";
 import {
@@ -98,20 +99,34 @@ export function DevelopersPage() {
   }
 
   const developers = developersQuery.data ?? [];
+  const hasNoSkills = !skillsQuery.isLoading && skills.length === 0;
 
   return (
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-lg font-semibold">Developers</h1>
-        <Button
-          onClick={() => {
-            createDeveloper.reset();
-            setIsAddOpen(true);
-          }}
-        >
-          Add developer
-        </Button>
+        <div className="flex items-center gap-2">
+          {hasNoSkills ? (
+            <Button variant="outline" asChild>
+              <Link to="/skill">Create skill</Link>
+            </Button>
+          ) : null}
+          <Button
+            disabled={hasNoSkills}
+            onClick={() => {
+              createDeveloper.reset();
+              setIsAddOpen(true);
+            }}
+          >
+            Add developer
+          </Button>
+        </div>
       </div>
+      {hasNoSkills ? (
+        <p className="text-sm text-muted-foreground">
+          You need at least one skill before you can add a developer.
+        </p>
+      ) : null}
 
       <Dialog
         open={isAddOpen}

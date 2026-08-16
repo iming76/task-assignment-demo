@@ -1,5 +1,4 @@
 import { screen } from "@testing-library/react";
-import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithQueryClient } from "../test/render";
@@ -39,11 +38,7 @@ afterEach(() => {
 });
 
 function renderDashboard() {
-  return renderWithQueryClient(
-    <MemoryRouter>
-      <DashboardPage />
-    </MemoryRouter>,
-  );
+  return renderWithQueryClient(<DashboardPage />);
 }
 
 describe("DashboardPage", () => {

@@ -1,6 +1,7 @@
 import type { ReactElement } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render, type RenderResult } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 
 export function renderWithQueryClient(ui: ReactElement): RenderResult {
   const queryClient = new QueryClient({
@@ -8,6 +9,8 @@ export function renderWithQueryClient(ui: ReactElement): RenderResult {
   });
 
   return render(
-    <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>,
+    <QueryClientProvider client={queryClient}>
+      <MemoryRouter>{ui}</MemoryRouter>
+    </QueryClientProvider>,
   );
 }

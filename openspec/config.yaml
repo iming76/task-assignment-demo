@@ -1,13 +1,21 @@
 schema: spec-driven
 
-# Project context (optional)
-# This is shown to AI when creating artifacts.
-# Add your tech stack, conventions, style guides, domain knowledge, etc.
-# Example:
-#   context: |
-#     Tech stack: TypeScript, React, Node.js
-#     We use conventional commits
-#     Domain: e-commerce platform
+context: |
+  This repository uses two complementary documentation layers:
+
+  - openspec/specs/<capability>/spec.md is the canonical record of accepted,
+    testable product behavior. Main specs are created or updated only when an
+    OpenSpec change is synced or archived.
+  - docs/ is supporting reference material. Read docs/requirements.md for
+    product scope, docs/architecture/ for system design, docs/contract/ for
+    API details, and docs/constitution/ for repository-wide constraints.
+  - docs/tasks/overview.md defines change dependencies. Each numbered task file
+    maps to the OpenSpec change with the numeric wave prefix removed.
+
+  When drafting or reviewing a change, use docs as context and cite the relevant
+  paths in the artifacts. Keep normative MUST/SHALL behavior in capability specs;
+  do not copy broad explanatory documentation into a spec. If a spec and docs
+  disagree, call out the conflict explicitly instead of silently choosing one.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.

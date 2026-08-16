@@ -46,6 +46,18 @@ task-assignment/
 | Containerization | Planned Docker + Docker Compose, with per-app images built from Turborepo prune output |
 | Testing          | Planned Vitest/Supertest (backend) and React Testing Library (frontend)                |
 
+## Local Development Ports
+
+| Service  | Port   | Local URL               |
+| -------- | ------ | ----------------------- |
+| Frontend | `3000` | `http://localhost:3000` |
+| Backend  | `5000` | `http://localhost:5000` |
+| Docs     | `3100` | `http://localhost:3100` |
+
+The docs workspace already uses its assigned port. The frontend and backend
+workspaces MUST use the ports above when their planned application shells are
+implemented.
+
 ## Turborepo Pipeline (`turbo.json`)
 
 ```jsonc

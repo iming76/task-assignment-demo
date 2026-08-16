@@ -1,6 +1,6 @@
 import type { ApiErrorCode, ApiErrorResponse } from "@repo/shared-types";
 
-export const DEFAULT_API_BASE_URL = "http://localhost:5000";
+export const DEFAULT_API_BASE_URL = "http://localhost:3100";
 
 export function getApiBaseUrl(): string {
   return import.meta.env.VITE_API_BASE_URL ?? DEFAULT_API_BASE_URL;

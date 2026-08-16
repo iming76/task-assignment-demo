@@ -14,13 +14,13 @@ export interface Env {
 }
 
 export function loadEnv(): Env {
-  const parsedPort = Number.parseInt(process.env.PORT ?? "5000", 10);
+  const parsedPort = Number.parseInt(process.env.PORT ?? "3100", 10);
   const parsedTimeout = Number.parseInt(
     process.env.AGENT_PLANNING_TIMEOUT_MS ?? "15000",
     10,
   );
   return {
-    port: Number.isNaN(parsedPort) ? 5000 : parsedPort,
+    port: Number.isNaN(parsedPort) ? 3100 : parsedPort,
     nodeEnv: process.env.NODE_ENV ?? "development",
     agentPlanning: {
       provider: process.env.AI_PROVIDER ?? "openai",

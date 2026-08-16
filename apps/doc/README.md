@@ -16,7 +16,7 @@ npm install
 npm run start
 ```
 
-This command starts the documentation site at <http://localhost:3100> and opens
+This command starts the documentation site at <http://localhost:3200> and opens
 a browser window. Most changes are reflected live without having to restart the
 server.
 

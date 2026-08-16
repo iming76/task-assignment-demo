@@ -51,8 +51,8 @@ task-assignment/
 | Service  | Port   | Local URL               |
 | -------- | ------ | ----------------------- |
 | Frontend | `3000` | `http://localhost:3000` |
-| Backend  | `5000` | `http://localhost:5000` |
-| Docs     | `3100` | `http://localhost:3100` |
+| Backend  | `3100` | `http://localhost:3100` |
+| Docs     | `3200` | `http://localhost:3200` |
 
 The docs workspace already uses its assigned port. The frontend and backend
 workspaces MUST use the ports above when their planned application shells are

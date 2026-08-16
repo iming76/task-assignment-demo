@@ -1,32 +1,18 @@
 import { type FormEvent, useState } from "react";
 
 import type { Task } from "@repo/shared-types";
-import {
-  Button,
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  Field,
-  FieldError,
-  FieldLabel,
-  Input,
-} from "@repo/ui";
+import { Button } from "@repo/ui";
 
-import { ApiClientError } from "../api";
 import { AgentTaskModal } from "../components/AgentTaskModal";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { EmptyState, ErrorState, LoadingState } from "../components/RouteState";
 import {
   emptyTaskAssignment,
   isTaskAssignmentComplete,
-  TaskAssignmentFields,
 } from "../components/TaskAssignmentFields";
-import { TaskTreeNodeView } from "../components/TaskTreeNode";
+import { AddTaskDialog } from "../components/tasks/AddTaskDialog";
+import { OrphanedTasksCard } from "../components/tasks/OrphanedTasksCard";
+import { TaskListWithPagination } from "../components/tasks/TaskListWithPagination";
 import { useDevelopers } from "../hooks/developers";
 import { useSkills } from "../hooks/skills";
 import {
@@ -35,13 +21,10 @@ import {
   usePatchTask,
   useTasks,
 } from "../hooks/tasks";
+import { errorMessage } from "../lib/error-message";
 import { buildTaskTree } from "../lib/task-tree";
 
 const TASKS_PER_PAGE = 20;
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof ApiClientError ? error.message : fallback;
-}
 
 export function TasksPage() {
   const tasksQuery = useTasks();
@@ -147,7 +130,7 @@ export function TasksPage() {
 
       <AgentTaskModal open={isAgentOpen} onOpenChange={setIsAgentOpen} />
 
-      <Dialog
+      <AddTaskDialog
         open={isAddOpen}
         onOpenChange={(open) => {
           setIsAddOpen(open);
@@ -156,59 +139,26 @@ export function TasksPage() {
             assignCreatedTask.reset();
           }
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add a task</DialogTitle>
-          </DialogHeader>
-          <form className="flex flex-col gap-4" onSubmit={handleCreate}>
-            <Field>
-              <FieldLabel htmlFor="task-title">Title</FieldLabel>
-              <Input
-                id="task-title"
-                value={title}
-                onChange={(event) => setTitle(event.target.value)}
-                required
-              />
-            </Field>
-            <Field>
-              <FieldLabel htmlFor="task-description">Description</FieldLabel>
-              <textarea
-                id="task-description"
-                className="min-h-20 w-full rounded-md border border-input bg-transparent px-2.5 py-1.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                value={description}
-                onChange={(event) => setDescription(event.target.value)}
-                required
-              />
-            </Field>
-            <TaskAssignmentFields
-              idPrefix="new-task"
-              value={assignment}
-              onChange={setAssignment}
-            />
-            {createTask.isError ? (
-              <FieldError>
-                {errorMessage(createTask.error, "Unable to create task.")}
-              </FieldError>
-            ) : null}
-            {assignCreatedTask.isError ? (
-              <FieldError>
-                The task was created, but its assignee could not be saved.{" "}
-                {errorMessage(
-                  assignCreatedTask.error,
-                  "Edit the task to assign it.",
-                )}
-              </FieldError>
-            ) : null}
-            <Button
-              type="submit"
-              disabled={isCreating || !isTaskAssignmentComplete(assignment)}
-            >
-              {isCreating ? "Adding…" : "Add task"}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+        title={title}
+        onTitleChange={setTitle}
+        description={description}
+        onDescriptionChange={setDescription}
+        assignment={assignment}
+        onAssignmentChange={setAssignment}
+        isPending={isCreating}
+        isTitleError={createTask.isError}
+        titleErrorMessage={errorMessage(
+          createTask.error,
+          "Unable to create task.",
+        )}
+        isAssignError={assignCreatedTask.isError}
+        assignErrorMessage={errorMessage(
+          assignCreatedTask.error,
+          "Edit the task to assign it.",
+        )}
+        submitDisabled={isCreating || !isTaskAssignmentComplete(assignment)}
+        onSubmit={handleCreate}
+      />
 
       {tree.roots.length === 0 && tree.orphans.length === 0 ? (
         <EmptyState
@@ -216,79 +166,28 @@ export function TasksPage() {
           description="Tasks you create will appear here."
         />
       ) : (
-        <div className="flex flex-col gap-4">
-          {pagedRoots.map((node) => (
-            <TaskTreeNodeView
-              key={node.task.id}
-              node={node}
-              skills={skills}
-              developers={developers}
-              onRequestDelete={(task) => {
-                deleteTask.reset();
-                setDeleteTarget(task);
-              }}
-            />
-          ))}
-          {pageCount > 1 ? (
-            <div className="flex items-center justify-between gap-3">
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage <= 1}
-                onClick={() => setPage(currentPage - 1)}
-              >
-                Previous
-              </Button>
-              <span className="text-sm text-muted-foreground">
-                Page {currentPage} of {pageCount}
-              </span>
-              <Button
-                variant="outline"
-                size="sm"
-                disabled={currentPage >= pageCount}
-                onClick={() => setPage(currentPage + 1)}
-              >
-                Next
-              </Button>
-            </div>
-          ) : null}
-        </div>
+        <TaskListWithPagination
+          pagedRoots={pagedRoots}
+          skills={skills}
+          developers={developers}
+          currentPage={currentPage}
+          pageCount={pageCount}
+          onPageChange={setPage}
+          onRequestDelete={(task) => {
+            deleteTask.reset();
+            setDeleteTarget(task);
+          }}
+        />
       )}
 
       {tree.orphans.length > 0 ? (
-        <Card>
-          <CardHeader>
-            <CardTitle>Orphaned tasks</CardTitle>
-          </CardHeader>
-          <CardContent className="flex flex-col gap-3">
-            <p className="text-sm text-muted-foreground">
-              These tasks reference a parent that no longer resolves. They are
-              shown here so nothing is silently hidden.
-            </p>
-            {tree.orphans.map((task) => (
-              <Card key={task.id}>
-                <CardContent className="flex items-center justify-between gap-3">
-                  <div>
-                    <CardTitle>{task.title}</CardTitle>
-                    <p className="text-sm text-muted-foreground">
-                      {task.description}
-                    </p>
-                  </div>
-                  <Button
-                    variant="destructive"
-                    size="sm"
-                    onClick={() => {
-                      deleteTask.reset();
-                      setDeleteTarget(task);
-                    }}
-                  >
-                    Delete
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </CardContent>
-        </Card>
+        <OrphanedTasksCard
+          orphans={tree.orphans}
+          onRequestDelete={(task) => {
+            deleteTask.reset();
+            setDeleteTarget(task);
+          }}
+        />
       ) : null}
 
       <ConfirmDeleteDialog

@@ -1,24 +1,12 @@
 import { type FormEvent, useState } from "react";
 
 import type { Developer } from "@repo/shared-types";
-import {
-  Badge,
-  Button,
-  Card,
-  CardContent,
-  CardTitle,
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  Field,
-  FieldError,
-  FieldLabel,
-  Input,
-} from "@repo/ui";
+import { Button } from "@repo/ui";
 
-import { ApiClientError } from "../api";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
+import { AddDeveloperDialog } from "../components/developers/AddDeveloperDialog";
+import { DeveloperGrid } from "../components/developers/DeveloperGrid";
+import { EditDeveloperDialog } from "../components/developers/EditDeveloperDialog";
 import { EmptyState, ErrorState, LoadingState } from "../components/RouteState";
 import {
   useCreateDeveloper,
@@ -27,14 +15,7 @@ import {
   usePatchDeveloper,
 } from "../hooks/developers";
 import { useSkills } from "../hooks/skills";
-
-function errorMessage(error: unknown, fallback: string): string {
-  return error instanceof ApiClientError ? error.message : fallback;
-}
-
-function toggleId(ids: string[], id: string): string[] {
-  return ids.includes(id) ? ids.filter((value) => value !== id) : [...ids, id];
-}
+import { errorMessage } from "../lib/error-message";
 
 export function DevelopersPage() {
   const developersQuery = useDevelopers();
@@ -126,7 +107,7 @@ export function DevelopersPage() {
         </p>
       ) : null}
 
-      <Dialog
+      <AddDeveloperDialog
         open={isAddOpen}
         onOpenChange={(open) => {
           setIsAddOpen(open);
@@ -134,136 +115,45 @@ export function DevelopersPage() {
             createDeveloper.reset();
           }
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Add a developer</DialogTitle>
-          </DialogHeader>
-          <form className="flex flex-col gap-4" onSubmit={handleCreate}>
-            <Field>
-              <FieldLabel htmlFor="developer-name">Name</FieldLabel>
-              <Input
-                id="developer-name"
-                value={name}
-                onChange={(event) => setName(event.target.value)}
-                required
-              />
-            </Field>
-            <Field>
-              <FieldLabel>Skills</FieldLabel>
-              {skillsQuery.isLoading ? (
-                <p className="text-sm text-muted-foreground">Loading skills…</p>
-              ) : (
-                <div className="flex flex-wrap gap-3">
-                  {skills.map((skill) => (
-                    <label
-                      key={skill.id}
-                      className="flex items-center gap-1.5 text-sm"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={skillIds.includes(skill.id)}
-                        onChange={() =>
-                          setSkillIds((current) => toggleId(current, skill.id))
-                        }
-                      />
-                      {skill.name}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </Field>
-            {createDeveloper.isError ? (
-              <FieldError>
-                {errorMessage(
-                  createDeveloper.error,
-                  "Unable to create developer.",
-                )}
-              </FieldError>
-            ) : null}
-            <Button type="submit" disabled={createDeveloper.isPending}>
-              {createDeveloper.isPending ? "Adding…" : "Add developer"}
-            </Button>
-          </form>
-        </DialogContent>
-      </Dialog>
+        name={name}
+        onNameChange={setName}
+        skillIds={skillIds}
+        onSkillIdsChange={setSkillIds}
+        skills={skills}
+        skillsLoading={skillsQuery.isLoading}
+        isPending={createDeveloper.isPending}
+        isError={createDeveloper.isError}
+        errorMessage={errorMessage(
+          createDeveloper.error,
+          "Unable to create developer.",
+        )}
+        onSubmit={handleCreate}
+      />
 
-      <Dialog
-        open={editingId !== null}
+      <EditDeveloperDialog
+        developer={editingDeveloper}
         onOpenChange={(open) => {
           if (!open) {
             setEditingId(null);
             patchDeveloper.reset();
           }
         }}
-      >
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Edit developer</DialogTitle>
-          </DialogHeader>
-          {editingDeveloper ? (
-            <form
-              className="flex flex-col gap-4"
-              onSubmit={(event) => handleEditSubmit(event, editingDeveloper.id)}
-            >
-              <Field>
-                <FieldLabel htmlFor={`edit-name-${editingDeveloper.id}`}>
-                  Name
-                </FieldLabel>
-                <Input
-                  id={`edit-name-${editingDeveloper.id}`}
-                  value={editName}
-                  onChange={(event) => setEditName(event.target.value)}
-                  required
-                />
-              </Field>
-              <Field>
-                <FieldLabel>Skills</FieldLabel>
-                <div className="flex flex-wrap gap-3">
-                  {skills.map((skill) => (
-                    <label
-                      key={skill.id}
-                      className="flex items-center gap-1.5 text-sm"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={editSkillIds.includes(skill.id)}
-                        onChange={() =>
-                          setEditSkillIds((current) =>
-                            toggleId(current, skill.id),
-                          )
-                        }
-                      />
-                      {skill.name}
-                    </label>
-                  ))}
-                </div>
-              </Field>
-              {patchDeveloper.isError ? (
-                <FieldError>
-                  {errorMessage(
-                    patchDeveloper.error,
-                    "Unable to update developer.",
-                  )}
-                </FieldError>
-              ) : null}
-              <div className="flex gap-2">
-                <Button type="submit" disabled={patchDeveloper.isPending}>
-                  {patchDeveloper.isPending ? "Saving…" : "Save"}
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  disabled={patchDeveloper.isPending}
-                  onClick={() => setEditingId(null)}
-                >
-                  Cancel
-                </Button>
-              </div>
-            </form>
-          ) : null}
-        </DialogContent>
-      </Dialog>
+        name={editName}
+        onNameChange={setEditName}
+        skillIds={editSkillIds}
+        onSkillIdsChange={setEditSkillIds}
+        skills={skills}
+        isPending={patchDeveloper.isPending}
+        isError={patchDeveloper.isError}
+        errorMessage={errorMessage(
+          patchDeveloper.error,
+          "Unable to update developer.",
+        )}
+        onSubmit={(event) =>
+          editingDeveloper && handleEditSubmit(event, editingDeveloper.id)
+        }
+        onCancel={() => setEditingId(null)}
+      />
 
       {developers.length === 0 ? (
         <EmptyState
@@ -271,52 +161,15 @@ export function DevelopersPage() {
           description="Developers you add will appear here."
         />
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {developers.map((developer) => (
-            <Card key={developer.id}>
-              <CardContent className="flex flex-col gap-3">
-                <div className="flex items-center justify-between gap-3">
-                  <CardTitle>{developer.name}</CardTitle>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => startEdit(developer)}
-                    >
-                      Edit
-                    </Button>
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      onClick={() => {
-                        deleteDeveloper.reset();
-                        setDeleteTarget(developer);
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {developer.skillIds.length === 0 ? (
-                    <span className="text-sm text-muted-foreground">
-                      No skills
-                    </span>
-                  ) : (
-                    developer.skillIds.map((skillId) => {
-                      const skill = skills.find((s) => s.id === skillId);
-                      return (
-                        <Badge key={skillId} variant="secondary">
-                          {skill?.name ?? skillId}
-                        </Badge>
-                      );
-                    })
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <DeveloperGrid
+          developers={developers}
+          skills={skills}
+          onEdit={startEdit}
+          onRequestDelete={(developer) => {
+            deleteDeveloper.reset();
+            setDeleteTarget(developer);
+          }}
+        />
       )}
 
       <ConfirmDeleteDialog

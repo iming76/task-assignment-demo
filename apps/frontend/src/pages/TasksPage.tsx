@@ -7,6 +7,10 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   Field,
   FieldError,
   FieldLabel,
@@ -32,6 +36,8 @@ import {
 } from "../hooks/tasks";
 import { buildTaskTree } from "../lib/task-tree";
 
+const TASKS_PER_PAGE = 20;
+
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiClientError ? error.message : fallback;
 }
@@ -48,6 +54,8 @@ export function TasksPage() {
   const [description, setDescription] = useState("");
   const [assignment, setAssignment] = useState(emptyTaskAssignment);
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
+  const [isAddOpen, setIsAddOpen] = useState(false);
+  const [page, setPage] = useState(1);
 
   const skills = skillsQuery.data ?? [];
   const developers = developersQuery.data ?? [];
@@ -75,6 +83,7 @@ export function TasksPage() {
           setTitle("");
           setDescription("");
           setAssignment(emptyTaskAssignment());
+          setIsAddOpen(false);
         },
       },
     );
@@ -95,13 +104,42 @@ export function TasksPage() {
   const tree = buildTaskTree(tasks);
   const isCreating = createTask.isPending || assignCreatedTask.isPending;
 
+  const pageCount = Math.max(1, Math.ceil(tree.roots.length / TASKS_PER_PAGE));
+  const currentPage = Math.min(page, pageCount);
+  const pagedRoots = tree.roots.slice(
+    (currentPage - 1) * TASKS_PER_PAGE,
+    currentPage * TASKS_PER_PAGE,
+  );
+
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Add a task</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-lg font-semibold">Tasks</h1>
+        <Button
+          onClick={() => {
+            createTask.reset();
+            assignCreatedTask.reset();
+            setIsAddOpen(true);
+          }}
+        >
+          Add task
+        </Button>
+      </div>
+
+      <Dialog
+        open={isAddOpen}
+        onOpenChange={(open) => {
+          setIsAddOpen(open);
+          if (!open) {
+            createTask.reset();
+            assignCreatedTask.reset();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add a task</DialogTitle>
+          </DialogHeader>
           <form className="flex flex-col gap-4" onSubmit={handleCreate}>
             <Field>
               <FieldLabel htmlFor="task-title">Title</FieldLabel>
@@ -148,8 +186,8 @@ export function TasksPage() {
               {isCreating ? "Adding…" : "Add task"}
             </Button>
           </form>
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
 
       {tree.roots.length === 0 && tree.orphans.length === 0 ? (
         <EmptyState
@@ -158,7 +196,7 @@ export function TasksPage() {
         />
       ) : (
         <div className="flex flex-col gap-4">
-          {tree.roots.map((node) => (
+          {pagedRoots.map((node) => (
             <TaskTreeNodeView
               key={node.task.id}
               node={node}
@@ -170,6 +208,29 @@ export function TasksPage() {
               }}
             />
           ))}
+          {pageCount > 1 ? (
+            <div className="flex items-center justify-between gap-3">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage <= 1}
+                onClick={() => setPage(currentPage - 1)}
+              >
+                Previous
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                Page {currentPage} of {pageCount}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={currentPage >= pageCount}
+                onClick={() => setPage(currentPage + 1)}
+              >
+                Next
+              </Button>
+            </div>
+          ) : null}
         </div>
       )}
 

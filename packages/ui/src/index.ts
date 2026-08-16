@@ -6,4 +6,5 @@ export * from "./components/ui/select";
 export * from "./components/ui/card";
 export * from "./components/ui/badge";
 export * from "./components/ui/alert-dialog";
+export * from "./components/ui/separator";
 export { cn } from "./lib/utils";

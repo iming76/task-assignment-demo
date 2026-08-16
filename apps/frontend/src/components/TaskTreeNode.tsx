@@ -173,11 +173,13 @@ export function TaskTreeNodeView({
                 required
               />
             </Field>
-            <TaskAssignmentFields
-              idPrefix={`edit-${task.id}`}
-              value={editAssignment}
-              onChange={setEditAssignment}
-            />
+            {children.length === 0 ? (
+              <TaskAssignmentFields
+                idPrefix={`edit-${task.id}`}
+                value={editAssignment}
+                onChange={setEditAssignment}
+              />
+            ) : null}
             {patchTask.isError ? (
               <FieldError>
                 {errorMessage(patchTask.error, "Unable to update task.")}
@@ -238,23 +240,29 @@ export function TaskTreeNodeView({
               </div>
             </div>
             <p className="text-sm text-muted-foreground">{task.description}</p>
-            <div className="flex flex-wrap items-center gap-1.5">
-              {task.requiredSkillIds.length === 0 ? (
-                <span className="text-sm text-muted-foreground">
-                  No required skills
-                </span>
-              ) : (
-                task.requiredSkillIds.map((skillId) => (
-                  <Badge key={skillId} variant="secondary">
-                    {skillName(skillId)}
-                  </Badge>
-                ))
-              )}
-            </div>
-            <p className="text-sm text-muted-foreground">
-              Assignee:{" "}
-              {task.assigneeId ? assigneeName(task.assigneeId) : "Unassigned"}
-            </p>
+            {children.length === 0 ? (
+              <>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {task.requiredSkillIds.length === 0 ? (
+                    <span className="text-sm text-muted-foreground">
+                      No required skills
+                    </span>
+                  ) : (
+                    task.requiredSkillIds.map((skillId) => (
+                      <Badge key={skillId} variant="secondary">
+                        {skillName(skillId)}
+                      </Badge>
+                    ))
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Assignee:{" "}
+                  {task.assigneeId
+                    ? assigneeName(task.assigneeId)
+                    : "Unassigned"}
+                </p>
+              </>
+            ) : null}
             {statusPatch.isError ? (
               <FieldError>{statusErrorMessage(statusPatch.error)}</FieldError>
             ) : null}
@@ -275,7 +283,8 @@ export function TaskTreeNodeView({
           </div>
         ) : null}
 
-        {task.depth >= MAX_TASK_DEPTH ? null : isAddingChild ? (
+        {task.depth >= MAX_TASK_DEPTH ||
+        task.assigneeId ? null : isAddingChild ? (
           <form
             className="flex flex-col gap-3 border-l border-border pl-4"
             onSubmit={handleChildSubmit}

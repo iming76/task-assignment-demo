@@ -11,6 +11,7 @@
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
     "db:studio": "prisma studio",
+    "db:seed": "tsx prisma/seed.ts",
     "test": "vitest run",
     "smoke": "pnpm run build && pnpm run db:generate"
   },
@@ -27,6 +28,7 @@
     "@types/node": "^22.15.3",
     "eslint": "^9.39.1",
     "prisma": "7.9.1",
+    "tsx": "^4.19.2",
     "typescript": "5.9.2",
     "vitest": "^4.1.10"
   }

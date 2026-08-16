@@ -9,6 +9,7 @@
     "check-types": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "test": "vitest run",
     "smoke": "pnpm run build && pnpm run db:generate"
   },
   "dependencies": {
@@ -22,6 +23,7 @@
     "@types/node": "^22.15.3",
     "eslint": "^9.39.1",
     "prisma": "7.9.1",
-    "typescript": "5.9.2"
+    "typescript": "5.9.2",
+    "vitest": "^4.1.10"
   }
 }

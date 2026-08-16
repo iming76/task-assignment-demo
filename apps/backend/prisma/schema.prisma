@@ -7,3 +7,84 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+enum TaskStatus {
+  TODO
+  DONE
+
+  @@map("task_status")
+}
+
+model Developer {
+  id   String @id @default(uuid())
+  name String @unique
+
+  skills        DeveloperSkill[]
+  assignedTasks Task[]
+
+  @@map("developers")
+}
+
+model Category {
+  id     String  @id @default(uuid())
+  name   String  @unique
+  skills Skill[]
+
+  @@map("categories")
+}
+
+model Skill {
+  id          String @id @default(uuid())
+  name        String @unique
+  description String
+  categoryId  String @map("category_id")
+
+  category    Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  developers  DeveloperSkill[]
+  tasks       TaskSkill[]
+
+  @@index([categoryId])
+  @@map("skills")
+}
+
+model Task {
+  id           String     @id @default(uuid())
+  title        String
+  description  String
+  status       TaskStatus @default(TODO)
+  assigneeId   String?    @map("assignee_id")
+  parentTaskId String?    @map("parent_task_id")
+
+  assignee       Developer?  @relation(fields: [assigneeId], references: [id], onDelete: Restrict)
+  parent         Task?       @relation("TaskToSubtask", fields: [parentTaskId], references: [id], onDelete: Restrict)
+  subtasks       Task[]      @relation("TaskToSubtask")
+  requiredSkills TaskSkill[]
+
+  @@index([assigneeId])
+  @@index([parentTaskId])
+  @@map("tasks")
+}
+
+model DeveloperSkill {
+  developerId String @map("developer_id")
+  skillId     String @map("skill_id")
+
+  developer Developer @relation(fields: [developerId], references: [id], onDelete: Cascade)
+  skill     Skill     @relation(fields: [skillId], references: [id], onDelete: Restrict)
+
+  @@id([developerId, skillId])
+  @@index([skillId])
+  @@map("developer_skills")
+}
+
+model TaskSkill {
+  taskId  String @map("task_id")
+  skillId String @map("skill_id")
+
+  task  Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  skill Skill @relation(fields: [skillId], references: [id], onDelete: Restrict)
+
+  @@id([taskId, skillId])
+  @@index([skillId])
+  @@map("task_skills")
+}

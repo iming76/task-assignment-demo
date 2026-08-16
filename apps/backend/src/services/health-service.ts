@@ -8,11 +8,13 @@ export interface HealthService {
   check(): Promise<HealthStatus>;
 }
 
-export class DefaultHealthService implements HealthService {
-  constructor(private readonly repository: HealthRepository) {}
-
-  async check(): Promise<HealthStatus> {
-    await this.repository.ping();
-    return { status: "ok" };
-  }
+export function createHealthService(
+  repository: HealthRepository,
+): HealthService {
+  return {
+    check: async () => {
+      await repository.ping();
+      return { status: "ok" };
+    },
+  };
 }

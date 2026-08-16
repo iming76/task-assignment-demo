@@ -10,7 +10,7 @@ import {
   OpenAiTaskPlanningProvider,
 } from "../src/lib/task-planning/openai-task-planning-provider.js";
 import { PrismaTransactionRunner } from "../src/lib/transaction.js";
-import { DefaultAgentTaskService } from "../src/services/agent-task-service.js";
+import { createAgentTaskService } from "../src/services/agent-task-service.js";
 import { judgeAgentPlan } from "./judge-agent-plan.js";
 
 /**
@@ -49,7 +49,7 @@ async function main(): Promise<void> {
     model: env.agentPlanning.model,
     timeoutMs: env.agentPlanning.timeoutMs,
   });
-  const agentTaskService = new DefaultAgentTaskService(
+  const agentTaskService = createAgentTaskService(
     provider,
     skillRepository,
     developerRepository,

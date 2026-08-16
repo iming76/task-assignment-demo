@@ -3,14 +3,14 @@ import type { ApiErrorResponse, Task } from "@repo/shared-types";
 import { buildApp } from "../src/app.js";
 import { prisma } from "../src/lib/prisma.js";
 import { PrismaTaskRepository } from "../src/lib/repositories/task-repository.js";
-import { DefaultTaskService } from "../src/services/task-service.js";
+import { createTaskService } from "../src/services/task-service.js";
 import { PrismaDeveloperRepository } from "../src/lib/repositories/developer-repository.js";
-import { DefaultDeveloperService } from "../src/services/developer-service.js";
+import { createDeveloperService } from "../src/services/developer-service.js";
 import { PrismaSkillRepository } from "../src/lib/repositories/skill-repository.js";
-import { DefaultSkillService } from "../src/services/skill-service.js";
+import { createSkillService } from "../src/services/skill-service.js";
 import { PrismaCategoryRepository } from "../src/lib/repositories/category-repository.js";
-import { DefaultCategoryService } from "../src/services/category-service.js";
-import { DefaultHealthService } from "../src/services/health-service.js";
+import { createCategoryService } from "../src/services/category-service.js";
+import { createHealthService } from "../src/services/health-service.js";
 import { PrismaTransactionRunner } from "../src/lib/transaction.js";
 import { FakeHealthRepository } from "./lib/fake-health-repository.js";
 import { seedApplicationData } from "../prisma/seed.js";
@@ -27,16 +27,16 @@ function buildTestApp() {
   const skillRepository = new PrismaSkillRepository(prisma);
   return buildApp(
     {
-      healthService: new DefaultHealthService(new FakeHealthRepository()),
-      taskService: new DefaultTaskService(
+      healthService: createHealthService(new FakeHealthRepository()),
+      taskService: createTaskService(
         new PrismaTaskRepository(prisma),
         developerRepository,
         skillRepository,
         new PrismaTransactionRunner(prisma),
       ),
-      developerService: new DefaultDeveloperService(developerRepository),
-      skillService: new DefaultSkillService(skillRepository),
-      categoryService: new DefaultCategoryService(
+      developerService: createDeveloperService(developerRepository),
+      skillService: createSkillService(skillRepository),
+      categoryService: createCategoryService(
         new PrismaCategoryRepository(prisma),
       ),
     },

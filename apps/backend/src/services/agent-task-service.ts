@@ -70,27 +70,25 @@ const applyPolicy: DraftResolutionPolicy = {
   },
 };
 
-export class DefaultAgentTaskService implements AgentTaskService {
-  constructor(
-    private readonly provider: TaskPlanningProvider,
-    private readonly skillRepository: SkillRepository,
-    private readonly developerRepository: DeveloperRepository,
-    private readonly taskRepository: TaskRepository,
-    private readonly transactionRunner: TransactionRunner,
-    private readonly limits: DraftLimits = DEFAULT_DRAFT_LIMITS,
-  ) {}
-
-  async propose(
+export function createAgentTaskService(
+  provider: TaskPlanningProvider,
+  skillRepository: SkillRepository,
+  developerRepository: DeveloperRepository,
+  taskRepository: TaskRepository,
+  transactionRunner: TransactionRunner,
+  limits: DraftLimits = DEFAULT_DRAFT_LIMITS,
+): AgentTaskService {
+  const propose = async (
     input: AgentTaskProposalRequest,
-  ): Promise<AgentTaskProposalResponse> {
+  ): Promise<AgentTaskProposalResponse> => {
     const [skills, developers] = await Promise.all([
-      this.skillRepository.list(),
-      this.developerRepository.list(),
+      skillRepository.list(),
+      developerRepository.list(),
     ]);
 
     let raw: unknown;
     try {
-      raw = await this.provider.generate({
+      raw = await provider.generate({
         description: input.description,
         skills,
         developers,
@@ -106,7 +104,7 @@ export class DefaultAgentTaskService implements AgentTaskService {
 
     let shaped: ShapedDraftNode[];
     try {
-      shaped = validateDraftShape(raw, this.limits);
+      shaped = validateDraftShape(raw, limits);
     } catch (error) {
       if (error instanceof DraftShapeError) {
         throw new AgentUnavailableError(
@@ -137,15 +135,17 @@ export class DefaultAgentTaskService implements AgentTaskService {
     }
 
     return { tasks };
-  }
+  };
 
-  async apply(input: AgentTaskApplyRequest): Promise<AgentTaskApplyResponse> {
-    const shaped = validateDraftShape(input.tasks, this.limits);
+  const apply = async (
+    input: AgentTaskApplyRequest,
+  ): Promise<AgentTaskApplyResponse> => {
+    const shaped = validateDraftShape(input.tasks, limits);
 
-    return this.transactionRunner.run(async (tx) => {
+    return transactionRunner.run(async (tx) => {
       const [skills, developers] = await Promise.all([
-        this.skillRepository.list(),
-        this.developerRepository.list(),
+        skillRepository.list(),
+        developerRepository.list(),
       ]);
       const skillsById = indexById(skills);
       const developersById = indexById(developers);
@@ -158,20 +158,20 @@ export class DefaultAgentTaskService implements AgentTaskService {
       );
 
       const created: Task[] = [];
-      await this.createTree(resolved, null, 1, tx, created);
+      await createTree(resolved, null, 1, tx, created);
       return created;
     });
-  }
+  };
 
-  private async createTree(
+  const createTree = async (
     nodes: AgentTaskDraft[],
     parentTaskId: string | null,
     depth: number,
     tx: TransactionClient,
     created: Task[],
-  ): Promise<void> {
+  ): Promise<void> => {
     for (const node of nodes) {
-      const task = await this.taskRepository.create(
+      const task = await taskRepository.create(
         {
           title: node.name,
           description: node.description,
@@ -183,9 +183,11 @@ export class DefaultAgentTaskService implements AgentTaskService {
         tx,
       );
       created.push(task);
-      await this.createTree(node.subtasks, task.id, depth + 1, tx, created);
+      await createTree(node.subtasks, task.id, depth + 1, tx, created);
     }
-  }
+  };
+
+  return { propose, apply };
 }
 
 function indexById<T extends { id: string }>(items: T[]): Map<string, T> {

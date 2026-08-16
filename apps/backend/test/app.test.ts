@@ -1,12 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { ApiErrorResponse } from "@repo/shared-types";
 import { buildApp } from "../src/app.js";
-import { DefaultHealthService } from "../src/services/health-service.js";
+import { createHealthService } from "../src/services/health-service.js";
 import { FakeHealthRepository } from "./lib/fake-health-repository.js";
 
 function buildTestApp(healthRepository = new FakeHealthRepository()) {
   return buildApp(
-    { healthService: new DefaultHealthService(healthRepository) },
+    { healthService: createHealthService(healthRepository) },
     { logger: false },
   );
 }

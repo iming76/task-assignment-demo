@@ -7,16 +7,17 @@ export interface CategoryService {
   get(id: string): Promise<Category>;
 }
 
-export class DefaultCategoryService implements CategoryService {
-  constructor(private readonly repository: CategoryRepository) {}
-
-  async list(): Promise<Category[]> {
-    return this.repository.list();
-  }
-
-  async get(id: string): Promise<Category> {
-    const category = await this.repository.findById(id);
+export function createCategoryService(
+  repository: CategoryRepository,
+): CategoryService {
+  const get = async (id: string): Promise<Category> => {
+    const category = await repository.findById(id);
     if (!category) throw new NotFoundError(`Category with id ${id} not found`);
     return category;
-  }
+  };
+
+  return {
+    list: () => repository.list(),
+    get,
+  };
 }

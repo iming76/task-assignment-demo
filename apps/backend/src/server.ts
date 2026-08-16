@@ -3,17 +3,17 @@ import { buildApp } from "./app.js";
 import { loadEnv } from "./config/env.js";
 import { disconnectPrisma, prisma } from "./lib/prisma.js";
 import { PrismaHealthRepository } from "./lib/repositories/health-repository.js";
-import { DefaultHealthService } from "./services/health-service.js";
+import { createHealthService } from "./services/health-service.js";
 import { PrismaTaskRepository } from "./lib/repositories/task-repository.js";
-import { DefaultTaskService } from "./services/task-service.js";
+import { createTaskService } from "./services/task-service.js";
 import { PrismaDeveloperRepository } from "./lib/repositories/developer-repository.js";
-import { DefaultDeveloperService } from "./services/developer-service.js";
+import { createDeveloperService } from "./services/developer-service.js";
 import { PrismaSkillRepository } from "./lib/repositories/skill-repository.js";
-import { DefaultSkillService } from "./services/skill-service.js";
+import { createSkillService } from "./services/skill-service.js";
 import { PrismaCategoryRepository } from "./lib/repositories/category-repository.js";
-import { DefaultCategoryService } from "./services/category-service.js";
+import { createCategoryService } from "./services/category-service.js";
 import { PrismaTransactionRunner } from "./lib/transaction.js";
-import { DefaultAgentTaskService } from "./services/agent-task-service.js";
+import { createAgentTaskService } from "./services/agent-task-service.js";
 import {
   NotConfiguredTaskPlanningProvider,
   type TaskPlanningProvider,
@@ -59,20 +59,18 @@ const skillInferenceProvider: SkillInferenceProvider =
     : new NotConfiguredSkillInferenceProvider();
 
 const app = buildApp({
-  healthService: new DefaultHealthService(new PrismaHealthRepository(prisma)),
-  taskService: new DefaultTaskService(
+  healthService: createHealthService(new PrismaHealthRepository(prisma)),
+  taskService: createTaskService(
     taskRepository,
     developerRepository,
     skillRepository,
     new PrismaTransactionRunner(prisma),
     new DefaultSkillInferenceService(skillInferenceProvider, skillRepository),
   ),
-  developerService: new DefaultDeveloperService(developerRepository),
-  skillService: new DefaultSkillService(skillRepository),
-  categoryService: new DefaultCategoryService(
-    new PrismaCategoryRepository(prisma),
-  ),
-  agentTaskService: new DefaultAgentTaskService(
+  developerService: createDeveloperService(developerRepository),
+  skillService: createSkillService(skillRepository),
+  categoryService: createCategoryService(new PrismaCategoryRepository(prisma)),
+  agentTaskService: createAgentTaskService(
     taskPlanningProvider,
     skillRepository,
     developerRepository,

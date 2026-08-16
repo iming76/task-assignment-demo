@@ -14,31 +14,27 @@ export interface DeveloperService {
   remove(id: string): Promise<void>;
 }
 
-export class DefaultDeveloperService implements DeveloperService {
-  constructor(private readonly repository: DeveloperRepository) {}
-
-  async list(): Promise<Developer[]> {
-    return this.repository.list();
-  }
-
-  async get(id: string): Promise<Developer> {
-    const developer = await this.repository.findById(id);
+export function createDeveloperService(
+  repository: DeveloperRepository,
+): DeveloperService {
+  const get = async (id: string): Promise<Developer> => {
+    const developer = await repository.findById(id);
     if (!developer)
       throw new NotFoundError(`Developer with id ${id} not found`);
     return developer;
-  }
+  };
 
-  async create(input: CreateDeveloperInput): Promise<Developer> {
-    return this.repository.create(input);
-  }
-
-  async update(id: string, input: PatchDeveloperInput): Promise<Developer> {
-    await this.get(id); // Ensure developer exists
-    return this.repository.update(id, input);
-  }
-
-  async remove(id: string): Promise<void> {
-    await this.get(id); // Ensure developer exists
-    await this.repository.delete(id);
-  }
+  return {
+    list: () => repository.list(),
+    get,
+    create: (input) => repository.create(input),
+    update: async (id, input) => {
+      await get(id); // Ensure developer exists
+      return repository.update(id, input);
+    },
+    remove: async (id) => {
+      await get(id); // Ensure developer exists
+      await repository.delete(id);
+    },
+  };
 }

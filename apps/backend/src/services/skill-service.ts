@@ -14,30 +14,24 @@ export interface SkillService {
   remove(id: string): Promise<void>;
 }
 
-export class DefaultSkillService implements SkillService {
-  constructor(private readonly repository: SkillRepository) {}
-
-  async list(): Promise<Skill[]> {
-    return this.repository.list();
-  }
-
-  async get(id: string): Promise<Skill> {
-    const skill = await this.repository.findById(id);
+export function createSkillService(repository: SkillRepository): SkillService {
+  const get = async (id: string): Promise<Skill> => {
+    const skill = await repository.findById(id);
     if (!skill) throw new NotFoundError(`Skill with id ${id} not found`);
     return skill;
-  }
+  };
 
-  async create(input: CreateSkillInput): Promise<Skill> {
-    return this.repository.create(input);
-  }
-
-  async update(id: string, input: PatchSkillInput): Promise<Skill> {
-    await this.get(id); // Ensure skill exists
-    return this.repository.update(id, input);
-  }
-
-  async remove(id: string): Promise<void> {
-    await this.get(id); // Ensure skill exists
-    await this.repository.delete(id);
-  }
+  return {
+    list: () => repository.list(),
+    get,
+    create: (input) => repository.create(input),
+    update: async (id, input) => {
+      await get(id); // Ensure skill exists
+      return repository.update(id, input);
+    },
+    remove: async (id) => {
+      await get(id); // Ensure skill exists
+      await repository.delete(id);
+    },
+  };
 }

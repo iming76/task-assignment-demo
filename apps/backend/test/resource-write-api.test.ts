@@ -3,14 +3,14 @@ import type { ApiErrorResponse, Developer, Skill } from "@repo/shared-types";
 import { buildApp } from "../src/app.js";
 import { prisma } from "../src/lib/prisma.js";
 import { PrismaTaskRepository } from "../src/lib/repositories/task-repository.js";
-import { DefaultTaskService } from "../src/services/task-service.js";
+import { createTaskService } from "../src/services/task-service.js";
 import { PrismaDeveloperRepository } from "../src/lib/repositories/developer-repository.js";
-import { DefaultDeveloperService } from "../src/services/developer-service.js";
+import { createDeveloperService } from "../src/services/developer-service.js";
 import { PrismaSkillRepository } from "../src/lib/repositories/skill-repository.js";
-import { DefaultSkillService } from "../src/services/skill-service.js";
+import { createSkillService } from "../src/services/skill-service.js";
 import { PrismaCategoryRepository } from "../src/lib/repositories/category-repository.js";
-import { DefaultCategoryService } from "../src/services/category-service.js";
-import { DefaultHealthService } from "../src/services/health-service.js";
+import { createCategoryService } from "../src/services/category-service.js";
+import { createHealthService } from "../src/services/health-service.js";
 import { FakeHealthRepository } from "./lib/fake-health-repository.js";
 
 async function resetDatabase(): Promise<void> {
@@ -22,13 +22,13 @@ async function resetDatabase(): Promise<void> {
 function buildTestApp() {
   return buildApp(
     {
-      healthService: new DefaultHealthService(new FakeHealthRepository()),
-      taskService: new DefaultTaskService(new PrismaTaskRepository(prisma)),
-      developerService: new DefaultDeveloperService(
+      healthService: createHealthService(new FakeHealthRepository()),
+      taskService: createTaskService(new PrismaTaskRepository(prisma)),
+      developerService: createDeveloperService(
         new PrismaDeveloperRepository(prisma),
       ),
-      skillService: new DefaultSkillService(new PrismaSkillRepository(prisma)),
-      categoryService: new DefaultCategoryService(
+      skillService: createSkillService(new PrismaSkillRepository(prisma)),
+      categoryService: createCategoryService(
         new PrismaCategoryRepository(prisma),
       ),
     },

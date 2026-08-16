@@ -31,42 +31,38 @@ export interface TaskService {
   remove(id: string): Promise<void>;
 }
 
-export class DefaultTaskService implements TaskService {
-  constructor(
-    private readonly repository: TaskRepository,
-    private readonly developerRepository: DeveloperRepository,
-    private readonly skillRepository: SkillRepository,
-    private readonly transactionRunner: TransactionRunner,
-    private readonly skillInferenceService: SkillInferenceService = new DefaultSkillInferenceService(
-      new NotConfiguredSkillInferenceProvider(),
-      skillRepository,
-    ),
-  ) {}
+export function createTaskService(
+  repository: TaskRepository,
+  developerRepository: DeveloperRepository,
+  skillRepository: SkillRepository,
+  transactionRunner: TransactionRunner,
+  skillInferenceService: SkillInferenceService = new DefaultSkillInferenceService(
+    new NotConfiguredSkillInferenceProvider(),
+    skillRepository,
+  ),
+): TaskService {
+  const list = (): Promise<Task[]> => repository.list();
 
-  async list(): Promise<Task[]> {
-    return this.repository.list();
-  }
-
-  async get(id: string): Promise<Task> {
-    const task = await this.repository.findById(id);
+  const get = async (id: string): Promise<Task> => {
+    const task = await repository.findById(id);
     if (!task) throw new NotFoundError(`Task with id ${id} not found`);
     return task;
-  }
+  };
 
-  async create(input: CreateTaskInput): Promise<Task> {
+  const create = async (input: CreateTaskInput): Promise<Task> => {
     // Runs before the transaction: a future real provider will make a
     // network call, which should not hold a DB transaction open.
     const requiredSkillIds =
       input.requiredSkillIds ??
-      (await this.skillInferenceService.inferSkillIds({
+      (await skillInferenceService.inferSkillIds({
         title: input.title,
         description: input.description,
       }));
 
-    return this.transactionRunner.run(async (tx) => {
+    return transactionRunner.run(async (tx) => {
       let depth = 1;
       if (input.parentTaskId) {
-        const parent = await this.repository.findById(input.parentTaskId, tx);
+        const parent = await repository.findById(input.parentTaskId, tx);
         if (!parent) {
           throw new NotFoundError(
             `Parent task with id ${input.parentTaskId} not found`,
@@ -74,11 +70,11 @@ export class DefaultTaskService implements TaskService {
         }
         depth = parent.depth + 1;
 
-        const ancestorIds = await this.repository.findAncestorIds(
+        const ancestorIds = await repository.findAncestorIds(
           input.parentTaskId,
           tx,
         );
-        await this.assertNoneDone(
+        await assertNoneDone(
           [input.parentTaskId, ...ancestorIds],
           tx,
           (doneId) =>
@@ -86,9 +82,9 @@ export class DefaultTaskService implements TaskService {
         );
       }
 
-      await this.assertSkillsExist(requiredSkillIds, tx);
+      await assertSkillsExist(requiredSkillIds, tx);
 
-      return this.repository.create(
+      return repository.create(
         {
           title: input.title,
           description: input.description,
@@ -99,17 +95,17 @@ export class DefaultTaskService implements TaskService {
         tx,
       );
     });
-  }
+  };
 
-  async update(id: string, input: PatchTaskInput): Promise<Task> {
-    return this.transactionRunner.run(async (tx) => {
-      const existing = await this.repository.findById(id, tx);
+  const update = async (id: string, input: PatchTaskInput): Promise<Task> => {
+    return transactionRunner.run(async (tx) => {
+      const existing = await repository.findById(id, tx);
       if (!existing) throw new NotFoundError(`Task with id ${id} not found`);
 
       if (input.status !== undefined && input.status !== existing.status) {
         if (input.status === "DONE") {
-          const descendantIds = await this.repository.findDescendantIds(id, tx);
-          const statuses = await this.repository.lockAndGetStatuses(
+          const descendantIds = await repository.findDescendantIds(id, tx);
+          const statuses = await repository.lockAndGetStatuses(
             [id, ...descendantIds],
             tx,
           );
@@ -122,8 +118,8 @@ export class DefaultTaskService implements TaskService {
             );
           }
         } else {
-          const ancestorIds = await this.repository.findAncestorIds(id, tx);
-          await this.assertNoneDone(
+          const ancestorIds = await repository.findAncestorIds(id, tx);
+          await assertNoneDone(
             ancestorIds,
             tx,
             (doneId) =>
@@ -133,7 +129,7 @@ export class DefaultTaskService implements TaskService {
       }
 
       if (input.requiredSkillIds !== undefined) {
-        await this.assertSkillsExist(input.requiredSkillIds, tx);
+        await assertSkillsExist(input.requiredSkillIds, tx);
       }
 
       const effectiveAssigneeId =
@@ -142,7 +138,7 @@ export class DefaultTaskService implements TaskService {
         input.requiredSkillIds ?? existing.requiredSkillIds;
 
       if (effectiveAssigneeId !== null) {
-        const developer = await this.developerRepository.findById(
+        const developer = await developerRepository.findById(
           effectiveAssigneeId,
           tx,
         );
@@ -161,30 +157,30 @@ export class DefaultTaskService implements TaskService {
         }
       }
 
-      return this.repository.update(id, input, tx);
+      return repository.update(id, input, tx);
     });
-  }
+  };
 
-  async remove(id: string): Promise<void> {
-    return this.transactionRunner.run(async (tx) => {
-      const existing = await this.repository.findById(id, tx);
+  const remove = async (id: string): Promise<void> => {
+    return transactionRunner.run(async (tx) => {
+      const existing = await repository.findById(id, tx);
       if (!existing) throw new NotFoundError(`Task with id ${id} not found`);
 
-      const hasChildren = await this.repository.hasChildren(id, tx);
+      const hasChildren = await repository.hasChildren(id, tx);
       if (hasChildren) {
         throw new InUseError(`Task ${id} still has one or more subtasks`);
       }
 
-      await this.repository.delete(id, tx);
+      await repository.delete(id, tx);
     });
-  }
+  };
 
-  private async assertSkillsExist(
+  const assertSkillsExist = async (
     skillIds: string[],
     tx: TransactionClient,
-  ): Promise<void> {
+  ): Promise<void> => {
     const skills = await Promise.all(
-      skillIds.map((skillId) => this.skillRepository.findById(skillId, tx)),
+      skillIds.map((skillId) => skillRepository.findById(skillId, tx)),
     );
     const missingIndex = skills.findIndex((skill) => skill === null);
     if (missingIndex !== -1) {
@@ -192,7 +188,7 @@ export class DefaultTaskService implements TaskService {
         `Skill with id ${skillIds[missingIndex]} not found`,
       );
     }
-  }
+  };
 
   /**
    * Row-locks every id (deterministic order, scoped to the affected
@@ -200,14 +196,16 @@ export class DefaultTaskService implements TaskService {
    * reading status separately, is what makes this race-safe against a
    * concurrent write to the same tree.
    */
-  private async assertNoneDone(
+  const assertNoneDone = async (
     ids: string[],
     tx: TransactionClient,
     makeMessage: (doneId: string) => string,
-  ): Promise<void> {
+  ): Promise<void> => {
     if (ids.length === 0) return;
-    const statuses = await this.repository.lockAndGetStatuses(ids, tx);
+    const statuses = await repository.lockAndGetStatuses(ids, tx);
     const doneId = ids.find((taskId) => statuses.get(taskId) === "DONE");
     if (doneId) throw new CompletedAncestorError(makeMessage(doneId));
-  }
+  };
+
+  return { list, get, create, update, remove };
 }

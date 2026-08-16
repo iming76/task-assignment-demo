@@ -19,6 +19,7 @@ import { DefaultCategoryService } from "../src/services/category-service.js";
 import { DefaultHealthService } from "../src/services/health-service.js";
 import { FakeHealthRepository } from "./lib/fake-health-repository.js";
 import { seedApplicationData } from "../prisma/seed.js";
+import { PrismaTransactionRunner } from "../src/lib/transaction.js";
 
 async function resetDatabase(): Promise<void> {
   await prisma.$executeRawUnsafe(
@@ -27,14 +28,19 @@ async function resetDatabase(): Promise<void> {
 }
 
 function buildTestApp() {
+  const developerRepository = new PrismaDeveloperRepository(prisma);
+  const skillRepository = new PrismaSkillRepository(prisma);
   return buildApp(
     {
       healthService: new DefaultHealthService(new FakeHealthRepository()),
-      taskService: new DefaultTaskService(new PrismaTaskRepository(prisma)),
-      developerService: new DefaultDeveloperService(
-        new PrismaDeveloperRepository(prisma),
+      taskService: new DefaultTaskService(
+        new PrismaTaskRepository(prisma),
+        developerRepository,
+        skillRepository,
+        new PrismaTransactionRunner(prisma),
       ),
-      skillService: new DefaultSkillService(new PrismaSkillRepository(prisma)),
+      developerService: new DefaultDeveloperService(developerRepository),
+      skillService: new DefaultSkillService(skillRepository),
       categoryService: new DefaultCategoryService(
         new PrismaCategoryRepository(prisma),
       ),

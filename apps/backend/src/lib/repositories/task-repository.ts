@@ -17,14 +17,15 @@ export interface CreateTaskRecord {
  */
 export interface TaskRepository {
   list(): Promise<Task[]>;
-  findById(id: string): Promise<Task | null>;
+  findById(id: string, tx?: TransactionClient): Promise<Task | null>;
+  hasChildren(id: string, tx?: TransactionClient): Promise<boolean>;
   create(input: CreateTaskRecord, tx?: TransactionClient): Promise<Task>;
   update(
     id: string,
     input: PatchTaskInput,
     tx?: TransactionClient,
   ): Promise<Task>;
-  delete(id: string): Promise<void>;
+  delete(id: string, tx?: TransactionClient): Promise<void>;
 }
 
 /**
@@ -64,13 +65,23 @@ export class PrismaTaskRepository implements TaskRepository {
     return Promise.all(tasks.map((t) => flattenTask(t as any)));
   }
 
-  async findById(id: string): Promise<Task | null> {
-    const task = await this.client.task.findUnique({
+  async findById(id: string, tx?: TransactionClient): Promise<Task | null> {
+    const client = tx ?? this.client;
+    const task = await client.task.findUnique({
       where: { id },
       include: { requiredSkills: { select: { skillId: true } } },
     });
     if (!task) return null;
     return flattenTask(task as any);
+  }
+
+  async hasChildren(id: string, tx?: TransactionClient): Promise<boolean> {
+    const client = tx ?? this.client;
+    const child = await client.task.findFirst({
+      where: { parentTaskId: id },
+      select: { id: true },
+    });
+    return child !== null;
   }
 
   async create(input: CreateTaskRecord, tx?: TransactionClient): Promise<Task> {
@@ -116,7 +127,8 @@ export class PrismaTaskRepository implements TaskRepository {
     return flattenTask(task as any);
   }
 
-  async delete(id: string): Promise<void> {
-    await this.client.task.delete({ where: { id } });
+  async delete(id: string, tx?: TransactionClient): Promise<void> {
+    const client = tx ?? this.client;
+    await client.task.delete({ where: { id } });
   }
 }

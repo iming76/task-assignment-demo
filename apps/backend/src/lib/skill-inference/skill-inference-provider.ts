@@ -11,3 +11,13 @@ export interface SkillInferenceProvider {
     availableSkillIds: string[];
   }): Promise<string[]>;
 }
+
+/**
+ * Temporary fallback seam used until 05b wires a real provider: an omitted
+ * requiredSkillIds resolves to [] rather than blocking task creation.
+ */
+export class NoopSkillInferenceProvider implements SkillInferenceProvider {
+  async inferSkillIds(): Promise<string[]> {
+    return [];
+  }
+}

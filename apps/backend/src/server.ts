@@ -12,16 +12,23 @@ import { PrismaSkillRepository } from "./lib/repositories/skill-repository.js";
 import { DefaultSkillService } from "./services/skill-service.js";
 import { PrismaCategoryRepository } from "./lib/repositories/category-repository.js";
 import { DefaultCategoryService } from "./services/category-service.js";
+import { PrismaTransactionRunner } from "./lib/transaction.js";
 
 const env = loadEnv();
 
+const developerRepository = new PrismaDeveloperRepository(prisma);
+const skillRepository = new PrismaSkillRepository(prisma);
+
 const app = buildApp({
   healthService: new DefaultHealthService(new PrismaHealthRepository(prisma)),
-  taskService: new DefaultTaskService(new PrismaTaskRepository(prisma)),
-  developerService: new DefaultDeveloperService(
-    new PrismaDeveloperRepository(prisma),
+  taskService: new DefaultTaskService(
+    new PrismaTaskRepository(prisma),
+    developerRepository,
+    skillRepository,
+    new PrismaTransactionRunner(prisma),
   ),
-  skillService: new DefaultSkillService(new PrismaSkillRepository(prisma)),
+  developerService: new DefaultDeveloperService(developerRepository),
+  skillService: new DefaultSkillService(skillRepository),
   categoryService: new DefaultCategoryService(
     new PrismaCategoryRepository(prisma),
   ),

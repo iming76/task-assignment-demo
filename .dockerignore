@@ -1,0 +1,32 @@
+# Version control metadata
+.git
+.gitignore
+.github
+
+# Editor / OS metadata
+.vscode
+.idea
+.DS_Store
+
+# Dependencies
+**/node_modules
+.pnpm-store
+
+# Build outputs and caches
+**/dist
+**/build
+**/.turbo
+**/coverage
+**/storybook-static
+apps/backend/src/generated
+apps/doc/.docusaurus
+
+# Environment files and secrets
+**/.env
+**/.env.*
+!**/.env.example
+
+# Local/dev-only data and logs
+*.log
+npm-debug.log*
+pnpm-debug.log*

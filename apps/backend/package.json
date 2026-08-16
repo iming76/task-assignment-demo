@@ -11,6 +11,7 @@
     "check-types": "tsc --noEmit",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",
+    "db:deploy": "prisma migrate deploy",
     "db:studio": "prisma studio",
     "test": "vitest run",
     "verify:agent-planning": "tsx scripts/verify-agent-planning-live.ts",

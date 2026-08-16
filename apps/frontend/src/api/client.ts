@@ -1,8 +1,6 @@
 import type {
-  AgentTaskApplyRequest,
-  AgentTaskApplyResponse,
-  AgentTaskProposalRequest,
-  AgentTaskProposalResponse,
+  AgentTaskRequest,
+  AgentTaskResponse,
   Category,
   CreateDeveloperInput,
   CreateSkillInput,
@@ -63,16 +61,10 @@ export const apiClient = {
   },
 
   agentTask: {
-    propose: (input: AgentTaskProposalRequest) =>
-      request<AgentTaskProposalResponse>({
+    orchestrate: (input: AgentTaskRequest) =>
+      request<AgentTaskResponse>({
         method: "POST",
-        path: "/agent-task/proposals",
-        body: input,
-      }),
-    apply: (input: AgentTaskApplyRequest) =>
-      request<AgentTaskApplyResponse>({
-        method: "POST",
-        path: "/agent-task/apply",
+        path: "/agent-task",
         body: input,
       }),
   },

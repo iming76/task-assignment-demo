@@ -148,21 +148,21 @@ describe("categories", () => {
 });
 
 describe("agentTask", () => {
-  it("requests a proposal", async () => {
-    mockFetchOnce({ tasks: [] });
-    await apiClient.agentTask.propose({ description: "Build a demo app." });
+  it("orchestrates a conversation through the single endpoint", async () => {
+    mockFetchOnce({
+      status: "needs_clarification",
+      question: "Which platform?",
+    });
+    await apiClient.agentTask.orchestrate({
+      messages: [{ role: "user", content: "Build a demo app." }],
+    });
     const [url, init] = lastCall();
-    expect(url).toBe(`${DEFAULT_API_BASE_URL}/agent-task/proposals`);
+    expect(url).toBe(`${DEFAULT_API_BASE_URL}/agent-task`);
     expect(init.body).toBe(
-      JSON.stringify({ description: "Build a demo app." }),
+      JSON.stringify({
+        messages: [{ role: "user", content: "Build a demo app." }],
+      }),
     );
-  });
-
-  it("applies a reviewed draft", async () => {
-    mockFetchOnce([{ id: "1" }], 201);
-    await apiClient.agentTask.apply({ tasks: [] });
-    const [url] = lastCall();
-    expect(url).toBe(`${DEFAULT_API_BASE_URL}/agent-task/apply`);
   });
 
   it("surfaces AGENT_UNAVAILABLE without leaking transport details", async () => {
@@ -176,7 +176,9 @@ describe("agentTask", () => {
       503,
     );
     await expect(
-      apiClient.agentTask.propose({ description: "Build a demo app." }),
+      apiClient.agentTask.orchestrate({
+        messages: [{ role: "user", content: "Build a demo app." }],
+      }),
     ).rejects.toMatchObject({ code: "AGENT_UNAVAILABLE", status: 503 });
   });
 });

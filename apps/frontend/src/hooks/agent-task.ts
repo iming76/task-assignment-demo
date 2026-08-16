@@ -1,24 +1,19 @@
-import type {
-  AgentTaskApplyRequest,
-  AgentTaskProposalRequest,
-} from "@repo/shared-types";
+import type { AgentTaskRequest } from "@repo/shared-types";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { apiClient } from "../api";
 import { tasksQueryKey } from "./tasks";
 
-export function useProposeAgentTask() {
-  return useMutation({
-    mutationFn: (input: AgentTaskProposalRequest) =>
-      apiClient.agentTask.propose(input),
-  });
-}
-
-export function useApplyAgentTask() {
+export function useOrchestrateAgentTask() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (input: AgentTaskApplyRequest) =>
-      apiClient.agentTask.apply(input),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: tasksQueryKey }),
+    mutationFn: (input: AgentTaskRequest) =>
+      apiClient.agentTask.orchestrate(input),
+    retry: false,
+    onSuccess: (response) => {
+      if (response.status === "created") {
+        return queryClient.invalidateQueries({ queryKey: tasksQueryKey });
+      }
+    },
   });
 }

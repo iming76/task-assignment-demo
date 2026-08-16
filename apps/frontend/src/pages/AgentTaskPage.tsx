@@ -1,5 +1,8 @@
 import { type FormEvent, useState } from "react";
-
+import type {
+  AgentTaskCreatedResponse,
+  AgentTaskMessage,
+} from "@repo/shared-types";
 import {
   Button,
   Card,
@@ -10,112 +13,111 @@ import {
   FieldError,
   FieldLabel,
 } from "@repo/ui";
-
 import { ApiClientError } from "../api";
-import { AgentDraftNodeEditor } from "../components/AgentDraftNodeEditor";
-import { useDevelopers } from "../hooks/developers";
-import { useApplyAgentTask, useProposeAgentTask } from "../hooks/agent-task";
-import { useSkills } from "../hooks/skills";
-import {
-  attachLocalIds,
-  stripLocalIds,
-  updateDraftNode,
-  type KeyedDraft,
-} from "../lib/agent-draft";
+import { useOrchestrateAgentTask } from "../hooks/agent-task";
 
-function proposeErrorMessage(error: unknown): string {
+function orchestrationErrorMessage(error: unknown): string {
   if (error instanceof ApiClientError && error.code === "AGENT_UNAVAILABLE") {
     return "Agent-assisted planning isn't available right now. You can still create tasks manually from the Tasks page.";
   }
   return error instanceof ApiClientError
     ? error.message
-    : "Unable to generate a plan.";
-}
-
-function applyErrorMessage(error: unknown): string {
-  return error instanceof ApiClientError
-    ? error.message
-    : "Unable to apply this plan.";
+    : "Unable to plan and create the requested work.";
 }
 
 export function AgentTaskPage() {
-  const developersQuery = useDevelopers();
-  const skillsQuery = useSkills();
-  const propose = useProposeAgentTask();
-  const apply = useApplyAgentTask();
+  const orchestrate = useOrchestrateAgentTask();
+  const [messages, setMessages] = useState<AgentTaskMessage[]>([]);
+  const [input, setInput] = useState("");
+  const [question, setQuestion] = useState<string | null>(null);
+  const [created, setCreated] = useState<AgentTaskCreatedResponse | null>(null);
 
-  const [description, setDescription] = useState("");
-  const [drafts, setDrafts] = useState<KeyedDraft[] | null>(null);
-
-  const developers = developersQuery.data ?? [];
-  const skills = skillsQuery.data ?? [];
-
-  function handleGenerate(event: FormEvent<HTMLFormElement>) {
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    apply.reset();
-    propose.mutate(
-      { description },
-      { onSuccess: (response) => setDrafts(attachLocalIds(response.tasks)) },
-    );
-  }
-
-  function handleDiscard() {
-    setDrafts(null);
-    setDescription("");
-    propose.reset();
-    apply.reset();
-  }
-
-  function handleApply() {
-    if (!drafts) return;
-    apply.mutate(
-      { tasks: stripLocalIds(drafts) },
+    const userMessage: AgentTaskMessage = {
+      role: "user",
+      content: input.trim(),
+    };
+    if (!userMessage.content) return;
+    const nextMessages = [...messages, userMessage];
+    orchestrate.mutate(
+      { messages: nextMessages },
       {
-        onSuccess: () => {
-          setDrafts(null);
-          setDescription("");
+        onSuccess: (response) => {
+          setInput("");
+          if (response.status === "needs_clarification") {
+            setMessages([
+              ...nextMessages,
+              { role: "assistant", content: response.question },
+            ]);
+            setQuestion(response.question);
+            return;
+          }
+          setMessages(nextMessages);
+          setQuestion(null);
+          setCreated(response);
         },
       },
     );
   }
 
-  function updateNode(
-    localId: string,
-    patch: Parameters<typeof updateDraftNode>[2],
-  ) {
-    setDrafts((current) =>
-      current ? updateDraftNode(current, localId, patch) : current,
-    );
+  function startOver() {
+    setMessages([]);
+    setInput("");
+    setQuestion(null);
+    setCreated(null);
+    orchestrate.reset();
   }
 
-  if (!drafts) {
+  if (created) {
     return (
-      <div className="mx-auto flex max-w-2xl flex-col gap-6">
+      <div className="mx-auto flex max-w-3xl flex-col gap-6">
         <Card>
           <CardHeader>
-            <CardTitle>Agent-assisted planning</CardTitle>
+            <CardTitle>Tasks created</CardTitle>
           </CardHeader>
-          <CardContent>
-            <form className="flex flex-col gap-4" onSubmit={handleGenerate}>
-              <Field>
-                <FieldLabel htmlFor="agent-description">
-                  Describe the work you need done
-                </FieldLabel>
-                <textarea
-                  id="agent-description"
-                  className="min-h-24 w-full rounded-md border border-input bg-transparent px-2.5 py-1.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                  value={description}
-                  onChange={(event) => setDescription(event.target.value)}
-                  required
-                />
-              </Field>
-              {propose.isError ? (
-                <FieldError>{proposeErrorMessage(propose.error)}</FieldError>
-              ) : null}
-              <Button type="submit" disabled={propose.isPending}>
-                {propose.isPending ? "Generating…" : "Generate plan"}
-              </Button>
-            </form>
+          <CardContent className="flex flex-col gap-4">
+            <p className="text-sm text-muted-foreground">{created.message}</p>
+            <ul className="space-y-3">
+              {created.tasks.map((task) => (
+                <li
+                  key={task.id}
+                  className="rounded-md border p-3"
+                  style={{ marginLeft: `${(task.depth - 1) * 16}px` }}
+                >
+                  <p className="font-medium">{task.title}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {task.description}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {task.assigneeId
+                      ? `Assigned: ${task.assigneeId}`
+                      : "Unassigned"}
+                  </p>
+                </li>
+              ))}
+            </ul>
+            {created.staffingGaps.length > 0 ? (
+              <div
+                className="rounded-md border border-amber-500/50 bg-amber-500/10 p-3"
+                role="status"
+              >
+                <p className="font-medium">Staffing required</p>
+                <ul className="mt-2 space-y-1 text-sm">
+                  {created.staffingGaps.map((gap) => (
+                    <li key={gap.taskId}>
+                      {gap.taskTitle} requires {gap.requiredRole}
+                      {gap.requiredSkillIds.length > 0
+                        ? ` (${gap.requiredSkillIds.join(", ")})`
+                        : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <Button type="button" variant="outline" onClick={startOver}>
+              Plan more work
+            </Button>
           </CardContent>
         </Card>
       </div>
@@ -123,41 +125,46 @@ export function AgentTaskPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
+    <div className="mx-auto flex max-w-2xl flex-col gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>Review the generated plan</CardTitle>
+          <CardTitle>Agent-assisted task creation</CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <p className="text-sm text-muted-foreground">
-            Nothing is saved yet. Edit the plan below, then apply it or discard
-            it.
-          </p>
-          {drafts.map((node) => (
-            <AgentDraftNodeEditor
-              key={node.localId}
-              node={node}
-              skills={skills}
-              developers={developers}
-              onFieldChange={updateNode}
-            />
-          ))}
-          {apply.isError ? (
-            <FieldError>{applyErrorMessage(apply.error)}</FieldError>
+        <CardContent>
+          {question ? (
+            <div className="mb-4 rounded-md border bg-muted/40 p-3">
+              <p className="text-sm font-medium">
+                The agent needs more information:
+              </p>
+              <p className="mt-1 text-sm">{question}</p>
+            </div>
           ) : null}
-          <div className="flex gap-2">
-            <Button onClick={handleApply} disabled={apply.isPending}>
-              {apply.isPending ? "Applying…" : "Apply plan"}
+          <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+            <Field>
+              <FieldLabel htmlFor="agent-input">
+                {question ? "Your answer" : "Describe the work you need done"}
+              </FieldLabel>
+              <textarea
+                id="agent-input"
+                className="min-h-24 w-full rounded-md border border-input bg-transparent px-2.5 py-1.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+                value={input}
+                onChange={(event) => setInput(event.target.value)}
+                required
+              />
+            </Field>
+            {orchestrate.isError ? (
+              <FieldError>
+                {orchestrationErrorMessage(orchestrate.error)}
+              </FieldError>
+            ) : null}
+            <Button type="submit" disabled={orchestrate.isPending}>
+              {orchestrate.isPending
+                ? "Planning…"
+                : question
+                  ? "Send answer"
+                  : "Create tasks"}
             </Button>
-            <Button
-              type="button"
-              variant="outline"
-              disabled={apply.isPending}
-              onClick={handleDiscard}
-            >
-              Discard
-            </Button>
-          </div>
+          </form>
         </CardContent>
       </Card>
     </div>

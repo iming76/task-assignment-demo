@@ -12,7 +12,7 @@ export function App() {
   return (
     <div className="bg-background text-foreground min-h-screen">
       <Navbar />
-      <main className="px-6 py-8">
+      <main className="px-6 pt-8 pb-24">
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/developer" element={<DevelopersPage />} />

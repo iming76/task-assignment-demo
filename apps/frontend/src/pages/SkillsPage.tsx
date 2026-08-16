@@ -142,7 +142,7 @@ export function SkillsPage() {
           description="Skills you add will appear here."
         />
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {skills.map((skill) => {
             const category = categories.find((c) => c.id === skill.categoryId);
             return (

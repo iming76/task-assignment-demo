@@ -1,23 +1,36 @@
 import type { Task } from "./task.js";
 
-export interface AgentTaskDraft {
-  name: string;
-  description: string;
-  assigneeId?: string | null;
+export type AgentTaskMessageRole = "user" | "assistant";
+
+export interface AgentTaskMessage {
+  role: AgentTaskMessageRole;
+  content: string;
+}
+
+export interface AgentTaskRequest {
+  messages: AgentTaskMessage[];
+}
+
+export interface AgentTaskStaffingGap {
+  taskId: string;
+  taskTitle: string;
+  requiredRole: string;
   requiredSkillIds: string[];
-  subtasks: AgentTaskDraft[];
+  unmatchedSkillRequirements?: string[];
 }
 
-export interface AgentTaskProposalRequest {
-  description: string;
+export interface AgentTaskClarificationResponse {
+  status: "needs_clarification";
+  question: string;
 }
 
-export interface AgentTaskProposalResponse {
-  tasks: AgentTaskDraft[];
+export interface AgentTaskCreatedResponse {
+  status: "created";
+  message: string;
+  tasks: Task[];
+  staffingGaps: AgentTaskStaffingGap[];
 }
 
-export interface AgentTaskApplyRequest {
-  tasks: AgentTaskDraft[];
-}
-
-export type AgentTaskApplyResponse = Task[];
+export type AgentTaskResponse =
+  | AgentTaskClarificationResponse
+  | AgentTaskCreatedResponse;

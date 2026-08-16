@@ -1,9 +1,11 @@
 export type {
-  AgentTaskApplyRequest,
-  AgentTaskApplyResponse,
-  AgentTaskDraft,
-  AgentTaskProposalRequest,
-  AgentTaskProposalResponse,
+  AgentTaskClarificationResponse,
+  AgentTaskCreatedResponse,
+  AgentTaskMessage,
+  AgentTaskMessageRole,
+  AgentTaskRequest,
+  AgentTaskResponse,
+  AgentTaskStaffingGap,
 } from "./agent-task.js";
 export type {
   Category,

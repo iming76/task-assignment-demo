@@ -142,6 +142,48 @@ importers:
         specifier: ^8.50.0
         version: 8.50.0(eslint@9.39.1(jiti@2.6.1))(typescript@5.9.2)
 
+  packages/shared-api-contracts-consumer-fixture:
+    devDependencies:
+      "@repo/shared-types":
+        specifier: workspace:*
+        version: link:../shared-types
+      "@repo/typescript-config":
+        specifier: workspace:*
+        version: link:../typescript-config
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
+  packages/shared-types:
+    devDependencies:
+      "@repo/eslint-config":
+        specifier: workspace:*
+        version: link:../eslint-config
+      "@repo/typescript-config":
+        specifier: workspace:*
+        version: link:../typescript-config
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.1(jiti@2.6.1)
+      globals:
+        specifier: ^16.5.0
+        version: 16.5.0
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
+  packages/shared-types-consumer-fixture:
+    devDependencies:
+      "@repo/shared-types":
+        specifier: workspace:*
+        version: link:../shared-types
+      "@repo/typescript-config":
+        specifier: workspace:*
+        version: link:../typescript-config
+      typescript:
+        specifier: 5.9.2
+        version: 5.9.2
+
   packages/typescript-config: {}
 
   packages/ui:

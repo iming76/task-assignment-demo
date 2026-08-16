@@ -39,7 +39,7 @@ yarn-error.log*
 .todo
 
 # OpenSpec
-openspec/changes
+# openspec/changes
 
 # Prisma generated client
 apps/backend/src/generated

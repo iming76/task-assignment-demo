@@ -5,6 +5,8 @@ import type {
 } from "@repo/shared-types";
 import type { TransactionClient } from "../transaction.js";
 import type { PrismaClient } from "../../generated/prisma/client.js";
+import { NotFoundError, InUseError } from "../../errors/application-error.js";
+import { translateKnownPrismaError } from "../prisma-error.js";
 
 /**
  * Persistence boundary for developers. Implementations own Prisma access and
@@ -12,7 +14,7 @@ import type { PrismaClient } from "../../generated/prisma/client.js";
  */
 export interface DeveloperRepository {
   list(): Promise<Developer[]>;
-  findById(id: string): Promise<Developer | null>;
+  findById(id: string, tx?: TransactionClient): Promise<Developer | null>;
   create(
     input: CreateDeveloperInput,
     tx?: TransactionClient,
@@ -52,8 +54,12 @@ export class PrismaDeveloperRepository implements DeveloperRepository {
     return Promise.all(developers.map((d) => flattenDeveloper(d as any)));
   }
 
-  async findById(id: string): Promise<Developer | null> {
-    const developer = await this.client.developer.findUnique({
+  async findById(
+    id: string,
+    tx?: TransactionClient,
+  ): Promise<Developer | null> {
+    const client = tx ?? this.client;
+    const developer = await client.developer.findUnique({
       where: { id },
       include: { skills: { select: { skillId: true } } },
     });
@@ -65,17 +71,26 @@ export class PrismaDeveloperRepository implements DeveloperRepository {
     input: CreateDeveloperInput,
     tx?: TransactionClient,
   ): Promise<Developer> {
-    const client = tx ?? this.client;
-    const developer = await client.developer.create({
-      data: {
-        name: input.name,
-        skills: {
-          create: (input.skillIds ?? []).map((skillId) => ({ skillId })),
+    const run = async (client: TransactionClient | PrismaClient) => {
+      await validateSkillIds(client, input.skillIds ?? []);
+      const developer = await client.developer.create({
+        data: {
+          name: input.name,
+          skills: {
+            create: (input.skillIds ?? []).map((skillId) => ({ skillId })),
+          },
         },
-      },
-      include: { skills: { select: { skillId: true } } },
-    });
-    return flattenDeveloper(developer as any);
+        include: { skills: { select: { skillId: true } } },
+      });
+      return flattenDeveloper(developer as any);
+    };
+
+    try {
+      if (tx) return await run(tx);
+      return await this.client.$transaction((inner) => run(inner));
+    } catch (error) {
+      translateKnownPrismaError(error);
+    }
   }
 
   async update(
@@ -83,25 +98,67 @@ export class PrismaDeveloperRepository implements DeveloperRepository {
     input: PatchDeveloperInput,
     tx?: TransactionClient,
   ): Promise<Developer> {
-    const client = tx ?? this.client;
-    const developer = await client.developer.update({
-      where: { id },
-      data: {
-        name: input.name,
-        skills:
-          input.skillIds !== undefined
-            ? {
-                deleteMany: {},
-                create: input.skillIds.map((skillId) => ({ skillId })),
-              }
-            : undefined,
-      },
-      include: { skills: { select: { skillId: true } } },
-    });
-    return flattenDeveloper(developer as any);
+    const run = async (client: TransactionClient | PrismaClient) => {
+      if (input.skillIds !== undefined) {
+        await validateSkillIds(client, input.skillIds);
+      }
+      const developer = await client.developer.update({
+        where: { id },
+        data: {
+          name: input.name,
+          skills:
+            input.skillIds !== undefined
+              ? {
+                  deleteMany: {},
+                  create: input.skillIds.map((skillId) => ({ skillId })),
+                }
+              : undefined,
+        },
+        include: { skills: { select: { skillId: true } } },
+      });
+      return flattenDeveloper(developer as any);
+    };
+
+    try {
+      if (tx) return await run(tx);
+      return await this.client.$transaction((inner) => run(inner));
+    } catch (error) {
+      translateKnownPrismaError(error);
+    }
   }
 
   async delete(id: string): Promise<void> {
-    await this.client.developer.delete({ where: { id } });
+    const assignedCount = await this.client.task.count({
+      where: { assigneeId: id },
+    });
+    if (assignedCount > 0) {
+      throw new InUseError(
+        `Developer with id ${id} is still assigned to a task`,
+      );
+    }
+
+    try {
+      await this.client.developer.delete({ where: { id } });
+    } catch (error) {
+      translateKnownPrismaError(error);
+    }
+  }
+}
+
+/** Rejects with NotFoundError if any skillId does not reference an existing Skill. */
+async function validateSkillIds(
+  client: TransactionClient | PrismaClient,
+  skillIds: string[],
+): Promise<void> {
+  if (skillIds.length === 0) return;
+  const uniqueIds = [...new Set(skillIds)];
+  const found = await client.skill.findMany({
+    where: { id: { in: uniqueIds } },
+    select: { id: true },
+  });
+  const foundIds = new Set(found.map((s) => s.id));
+  const missing = uniqueIds.filter((id) => !foundIds.has(id));
+  if (missing.length > 0) {
+    throw new NotFoundError(`Skill with id ${missing[0]} not found`);
   }
 }

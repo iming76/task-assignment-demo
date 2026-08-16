@@ -15,6 +15,11 @@ export class NotFoundError extends ApplicationError {
   readonly statusCode = 404;
 }
 
+export class ValidationError extends ApplicationError {
+  readonly code = "VALIDATION_ERROR" as const;
+  readonly statusCode = 400;
+}
+
 export class SkillMismatchError extends ApplicationError {
   readonly code = "SKILL_MISMATCH" as const;
   readonly statusCode = 409;

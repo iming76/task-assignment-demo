@@ -14,6 +14,7 @@
     "db:studio": "prisma studio",
     "db:seed": "tsx prisma/seed.ts",
     "test": "vitest run",
+    "verify:agent-planning": "tsx scripts/verify-agent-planning-live.ts",
     "smoke": "pnpm run build && pnpm run db:generate"
   },
   "dependencies": {

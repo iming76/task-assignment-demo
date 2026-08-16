@@ -11,7 +11,7 @@ export function App() {
   return (
     <div className="bg-background text-foreground min-h-screen">
       <Navbar />
-      <main className="px-6 pt-8 pb-24">
+      <main className="px-6 pt-8 pb-24 bg-gray-50">
         <Routes>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/developer" element={<DevelopersPage />} />

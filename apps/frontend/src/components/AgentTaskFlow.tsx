@@ -19,6 +19,43 @@ import { useOrchestrateAgentTask } from "../hooks/agent-task";
 import { useDevelopers } from "../hooks/developers";
 import { useSkills } from "../hooks/skills";
 
+const SIMPLE_TASK_TEMPLATE = `As a visitor, I want to see a responsive homepage so that I can easily navigate on both
+desktop and mobile devices.`;
+
+const COMPLEX_TASK_TEMPLATE = `As a logged-in user, I want to update my profile information, profile picture, and notification preferences so that my account details are accurate and personalized.**
+
+## Requirements
+* Users can view and update their name, email, and phone number.
+* Users can upload and replace their profile picture.
+* Users can view and update notification preferences.
+* Users can only update their own profile.
+* The profile page must be responsive and accessible.
+* Invalid form data and unsupported image uploads must show an error.
+
+## Technical Requirements
+
+The feature uses two backend services:
+
+Use **Node.js + TypeScript + Express.js** for core profile functionality.
+
+Required endpoints:
+
+\`\`\`text
+GET   /api/profile
+PATCH /api/profile
+POST  /api/profile/avatar
+\`\`\`
+
+Use **Python + FastAPI** for notification preferences.
+Required endpoints:
+
+\`\`\`text
+GET   /api/profile/preferences
+PATCH /api/profile/preferences
+\`\`\`
+
+Use **PostgreSQL + Prisma** to store profile information and notification preferences.`;
+
 function orchestrationErrorMessage(error: unknown): string {
   if (error instanceof ApiClientError && error.code === "AGENT_UNAVAILABLE") {
     return "Agent-assisted planning isn't available right now. You can still create tasks manually from the Tasks page.";
@@ -140,6 +177,24 @@ export function AgentTaskFlow({
         <FieldLabel htmlFor="agent-input">
           Describe the work you need done
         </FieldLabel>
+        <div className="flex gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setInput(SIMPLE_TASK_TEMPLATE)}
+          >
+            Simple task
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => setInput(COMPLEX_TASK_TEMPLATE)}
+          >
+            Complex task
+          </Button>
+        </div>
         <textarea
           id="agent-input"
           className="min-h-[50vh] w-full rounded-md border border-input bg-transparent px-2.5 py-1.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"

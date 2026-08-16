@@ -1,8 +1,10 @@
 import type { CreateTaskInput, PatchTaskInput, Task } from "@repo/shared-types";
 import {
+  CompletedAncestorError,
   InUseError,
   NotFoundError,
   SkillMismatchError,
+  SubtasksIncompleteError,
 } from "../errors/application-error.js";
 import type { DeveloperRepository } from "../lib/repositories/developer-repository.js";
 import type { SkillRepository } from "../lib/repositories/skill-repository.js";
@@ -68,6 +70,17 @@ export class DefaultTaskService implements TaskService {
           );
         }
         depth = parent.depth + 1;
+
+        const ancestorIds = await this.repository.findAncestorIds(
+          input.parentTaskId,
+          tx,
+        );
+        await this.assertNoneDone(
+          [input.parentTaskId, ...ancestorIds],
+          tx,
+          (doneId) =>
+            `Task ${doneId} is already DONE; cannot create a task beneath it`,
+        );
       }
 
       await this.assertSkillsExist(requiredSkillIds, tx);
@@ -89,6 +102,32 @@ export class DefaultTaskService implements TaskService {
     return this.transactionRunner.run(async (tx) => {
       const existing = await this.repository.findById(id, tx);
       if (!existing) throw new NotFoundError(`Task with id ${id} not found`);
+
+      if (input.status !== undefined && input.status !== existing.status) {
+        if (input.status === "DONE") {
+          const descendantIds = await this.repository.findDescendantIds(id, tx);
+          const statuses = await this.repository.lockAndGetStatuses(
+            [id, ...descendantIds],
+            tx,
+          );
+          const incompleteId = descendantIds.find(
+            (taskId) => statuses.get(taskId) === "TODO",
+          );
+          if (incompleteId) {
+            throw new SubtasksIncompleteError(
+              `Task ${incompleteId} is still TODO; cannot complete a task while a descendant is incomplete`,
+            );
+          }
+        } else {
+          const ancestorIds = await this.repository.findAncestorIds(id, tx);
+          await this.assertNoneDone(
+            ancestorIds,
+            tx,
+            (doneId) =>
+              `Task ${doneId} is already DONE; cannot reopen a task beneath it`,
+          );
+        }
+      }
 
       if (input.requiredSkillIds !== undefined) {
         await this.assertSkillsExist(input.requiredSkillIds, tx);
@@ -150,5 +189,22 @@ export class DefaultTaskService implements TaskService {
         `Skill with id ${skillIds[missingIndex]} not found`,
       );
     }
+  }
+
+  /**
+   * Row-locks every id (deterministic order, scoped to the affected
+   * ancestry) and throws if any of them is DONE. Locking here, rather than
+   * reading status separately, is what makes this race-safe against a
+   * concurrent write to the same tree.
+   */
+  private async assertNoneDone(
+    ids: string[],
+    tx: TransactionClient,
+    makeMessage: (doneId: string) => string,
+  ): Promise<void> {
+    if (ids.length === 0) return;
+    const statuses = await this.repository.lockAndGetStatuses(ids, tx);
+    const doneId = ids.find((taskId) => statuses.get(taskId) === "DONE");
+    if (doneId) throw new CompletedAncestorError(makeMessage(doneId));
   }
 }

@@ -448,4 +448,177 @@ describe("task write api", () => {
       expect((response.json() as ApiErrorResponse).error.code).toBe("IN_USE");
     });
   });
+
+  describe("completion and reopening invariants", () => {
+    async function createTask(
+      app: ReturnType<typeof buildTestApp>,
+      overrides: Record<string, unknown> = {},
+    ): Promise<Task> {
+      const response = await app.inject({
+        method: "POST",
+        url: "/tasks",
+        payload: {
+          title: "Task",
+          description: "Description.",
+          ...overrides,
+        },
+      });
+      return response.json() as Task;
+    }
+
+    async function patchStatus(
+      app: ReturnType<typeof buildTestApp>,
+      id: string,
+      status: "TODO" | "DONE",
+    ) {
+      return app.inject({
+        method: "PATCH",
+        url: `/tasks/${id}`,
+        payload: { status },
+      });
+    }
+
+    async function buildThreeLevelTree(app: ReturnType<typeof buildTestApp>) {
+      const root = await createTask(app, { title: "Root" });
+      const child = await createTask(app, {
+        title: "Child",
+        parentTaskId: root.id,
+      });
+      const grandchild = await createTask(app, {
+        title: "Grandchild",
+        parentTaskId: child.id,
+      });
+      return { root, child, grandchild };
+    }
+
+    it("rejects completing an ancestor while a grandchild is still TODO", async () => {
+      const app = buildTestApp();
+      await app.ready();
+      const { root } = await buildThreeLevelTree(app);
+
+      const response = await patchStatus(app, root.id, "DONE");
+
+      expect(response.statusCode).toBe(409);
+      expect((response.json() as ApiErrorResponse).error.code).toBe(
+        "SUBTASKS_INCOMPLETE",
+      );
+    });
+
+    it("allows leaf-up completion across three levels", async () => {
+      const app = buildTestApp();
+      await app.ready();
+      const { root, child, grandchild } = await buildThreeLevelTree(app);
+
+      const grandchildDone = await patchStatus(app, grandchild.id, "DONE");
+      expect(grandchildDone.statusCode).toBe(200);
+
+      const childDone = await patchStatus(app, child.id, "DONE");
+      expect(childDone.statusCode).toBe(200);
+
+      const rootDone = await patchStatus(app, root.id, "DONE");
+      expect(rootDone.statusCode).toBe(200);
+      expect((rootDone.json() as Task).status).toBe("DONE");
+    });
+
+    it("allows root-down reopening and rejects reopening below a still-DONE ancestor", async () => {
+      const app = buildTestApp();
+      await app.ready();
+      const { root, child, grandchild } = await buildThreeLevelTree(app);
+      await patchStatus(app, grandchild.id, "DONE");
+      await patchStatus(app, child.id, "DONE");
+      await patchStatus(app, root.id, "DONE");
+
+      const reopenGrandchildEarly = await patchStatus(
+        app,
+        grandchild.id,
+        "TODO",
+      );
+      expect(reopenGrandchildEarly.statusCode).toBe(409);
+      expect(
+        (reopenGrandchildEarly.json() as ApiErrorResponse).error.code,
+      ).toBe("COMPLETED_ANCESTOR");
+
+      const reopenRoot = await patchStatus(app, root.id, "TODO");
+      expect(reopenRoot.statusCode).toBe(200);
+
+      const reopenChild = await patchStatus(app, child.id, "TODO");
+      expect(reopenChild.statusCode).toBe(200);
+
+      const reopenGrandchild = await patchStatus(app, grandchild.id, "TODO");
+      expect(reopenGrandchild.statusCode).toBe(200);
+      expect((reopenGrandchild.json() as Task).status).toBe("TODO");
+    });
+
+    it("rejects creating a child beneath a DONE parent", async () => {
+      const app = buildTestApp();
+      await app.ready();
+      const root = await createTask(app, { title: "Root" });
+      await patchStatus(app, root.id, "DONE");
+
+      const response = await app.inject({
+        method: "POST",
+        url: "/tasks",
+        payload: {
+          title: "Late child",
+          description: "Created after completion.",
+          parentTaskId: root.id,
+        },
+      });
+
+      expect(response.statusCode).toBe(409);
+      expect((response.json() as ApiErrorResponse).error.code).toBe(
+        "COMPLETED_ANCESTOR",
+      );
+    });
+
+    it("keeps an unchanged status patch idempotent even with an incomplete child", async () => {
+      const app = buildTestApp();
+      await app.ready();
+      const root = await createTask(app, { title: "Root" });
+      await createTask(app, { title: "Child", parentTaskId: root.id });
+
+      const response = await patchStatus(app, root.id, "TODO");
+
+      expect(response.statusCode).toBe(200);
+      expect((response.json() as Task).status).toBe("TODO");
+    });
+
+    it("serializes a concurrent completion against a concurrent child creation without violating invariants", async () => {
+      const app = buildTestApp();
+      await app.ready();
+      const root = await createTask(app, { title: "Root" });
+
+      const [patchResponse, createResponse] = await Promise.all([
+        patchStatus(app, root.id, "DONE"),
+        app.inject({
+          method: "POST",
+          url: "/tasks",
+          payload: {
+            title: "Late child",
+            description: "Racing the completion.",
+            parentTaskId: root.id,
+          },
+        }),
+      ]);
+
+      const finalRoot = (
+        await app.inject({ method: "GET", url: `/tasks/${root.id}` })
+      ).json() as Task;
+
+      if (patchResponse.statusCode === 200) {
+        expect(createResponse.statusCode).toBe(409);
+        expect((createResponse.json() as ApiErrorResponse).error.code).toBe(
+          "COMPLETED_ANCESTOR",
+        );
+        expect(finalRoot.status).toBe("DONE");
+      } else {
+        expect(patchResponse.statusCode).toBe(409);
+        expect((patchResponse.json() as ApiErrorResponse).error.code).toBe(
+          "SUBTASKS_INCOMPLETE",
+        );
+        expect(createResponse.statusCode).toBe(201);
+        expect(finalRoot.status).toBe("TODO");
+      }
+    });
+  });
 });

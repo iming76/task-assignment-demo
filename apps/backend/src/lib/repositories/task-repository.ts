@@ -1,4 +1,4 @@
-import type { PatchTaskInput, Task } from "@repo/shared-types";
+import type { PatchTaskInput, Task, TaskStatus } from "@repo/shared-types";
 import type { TransactionClient } from "../transaction.js";
 import type { PrismaClient } from "../../generated/prisma/client.js";
 
@@ -28,6 +28,20 @@ export interface TaskRepository {
     tx?: TransactionClient,
   ): Promise<Task>;
   delete(id: string, tx?: TransactionClient): Promise<void>;
+  /** All ancestor ids from immediate parent to root, cycle-safe, unlocked. */
+  findAncestorIds(id: string, tx: TransactionClient): Promise<string[]>;
+  /** All descendant ids at any depth, cycle-safe, unlocked. */
+  findDescendantIds(id: string, tx: TransactionClient): Promise<string[]>;
+  /**
+   * Row-locks the given tasks (`SELECT ... FOR UPDATE`, deterministic id
+   * order to avoid deadlocks) and returns their current status, atomically
+   * within the caller's transaction. Callers use this to make invariant
+   * checks race-safe against concurrent writes to the same tree.
+   */
+  lockAndGetStatuses(
+    ids: string[],
+    tx: TransactionClient,
+  ): Promise<Map<string, TaskStatus>>;
 }
 
 /**
@@ -133,5 +147,56 @@ export class PrismaTaskRepository implements TaskRepository {
   async delete(id: string, tx?: TransactionClient): Promise<void> {
     const client = tx ?? this.client;
     await client.task.delete({ where: { id } });
+  }
+
+  async findAncestorIds(id: string, tx: TransactionClient): Promise<string[]> {
+    const rows = await tx.$queryRaw<Array<{ id: string }>>`
+      WITH RECURSIVE ancestors AS (
+        SELECT id, parent_task_id, ARRAY[id] AS path
+        FROM tasks
+        WHERE id = ${id}
+        UNION ALL
+        SELECT t.id, t.parent_task_id, a.path || t.id
+        FROM tasks t
+        INNER JOIN ancestors a ON t.id = a.parent_task_id
+        WHERE NOT t.id = ANY(a.path)
+      )
+      SELECT id FROM ancestors WHERE id != ${id}
+    `;
+    return rows.map((row) => row.id);
+  }
+
+  async findDescendantIds(
+    id: string,
+    tx: TransactionClient,
+  ): Promise<string[]> {
+    const rows = await tx.$queryRaw<Array<{ id: string }>>`
+      WITH RECURSIVE descendants AS (
+        SELECT id, parent_task_id, ARRAY[id] AS path
+        FROM tasks
+        WHERE id = ${id}
+        UNION ALL
+        SELECT t.id, t.parent_task_id, d.path || t.id
+        FROM tasks t
+        INNER JOIN descendants d ON t.parent_task_id = d.id
+        WHERE NOT t.id = ANY(d.path)
+      )
+      SELECT id FROM descendants WHERE id != ${id}
+    `;
+    return rows.map((row) => row.id);
+  }
+
+  async lockAndGetStatuses(
+    ids: string[],
+    tx: TransactionClient,
+  ): Promise<Map<string, TaskStatus>> {
+    if (ids.length === 0) return new Map();
+    const rows = await tx.$queryRaw<Array<{ id: string; status: TaskStatus }>>`
+      SELECT id, status FROM tasks
+      WHERE id = ANY(${ids}::text[])
+      ORDER BY id
+      FOR UPDATE
+    `;
+    return new Map(rows.map((row) => [row.id, row.status]));
   }
 }

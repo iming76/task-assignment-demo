@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithQueryClient } from "../test/render";
+import { DEFAULT_API_BASE_URL } from "../api/http";
 import { DashboardPage } from "./DashboardPage";
 
 interface MockResponse {
@@ -17,7 +18,7 @@ function mockApi(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === "string" ? input : input.toString();
-      const path = url.replace("http://localhost:3000", "");
+      const path = url.replace(DEFAULT_API_BASE_URL, "");
       const key = `${init?.method ?? "GET"} ${path}`;
       const entry = responses[key];
       if (!entry) {

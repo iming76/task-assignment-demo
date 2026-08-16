@@ -1,5 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiClientError, getApiBaseUrl, request } from "./http";
+import {
+  ApiClientError,
+  DEFAULT_API_BASE_URL,
+  getApiBaseUrl,
+  request,
+} from "./http";
 
 function mockFetchOnce(response: Partial<Response>): void {
   vi.stubGlobal("fetch", vi.fn().mockResolvedValue(response as Response));
@@ -7,7 +12,7 @@ function mockFetchOnce(response: Partial<Response>): void {
 
 describe("getApiBaseUrl", () => {
   it("falls back to the local backend default when unset", () => {
-    expect(getApiBaseUrl()).toBe("http://localhost:3000");
+    expect(getApiBaseUrl()).toBe(DEFAULT_API_BASE_URL);
   });
 });
 
@@ -25,7 +30,7 @@ describe("request", () => {
 
     await request({ method: "GET", path: "/tasks" });
 
-    expect(fetch).toHaveBeenCalledWith("http://localhost:3000/tasks", {
+    expect(fetch).toHaveBeenCalledWith(`${DEFAULT_API_BASE_URL}/tasks`, {
       method: "GET",
       headers: undefined,
       body: undefined,

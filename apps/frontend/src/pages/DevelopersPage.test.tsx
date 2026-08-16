@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { renderWithQueryClient } from "../test/render";
+import { DEFAULT_API_BASE_URL } from "../api/http";
 import { DevelopersPage } from "./DevelopersPage";
 
 interface MockResponse {
@@ -17,7 +18,7 @@ function mockApi(
     "fetch",
     vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
       const url = typeof input === "string" ? input : input.toString();
-      const path = url.replace("http://localhost:3000", "");
+      const path = url.replace(DEFAULT_API_BASE_URL, "");
       const key = `${init?.method ?? "GET"} ${path}`;
       const entry = responses[key];
       if (!entry) {
@@ -90,7 +91,7 @@ describe("DevelopersPage", () => {
     await user.click(screen.getByRole("button", { name: "Add developer" }));
 
     expect(fetch).toHaveBeenCalledWith(
-      "http://localhost:3000/developers",
+      `${DEFAULT_API_BASE_URL}/developers`,
       expect.objectContaining({
         method: "POST",
         body: JSON.stringify({ name: "Ada", skillIds: ["s1"] }),
@@ -117,7 +118,7 @@ describe("DevelopersPage", () => {
       screen.queryByRole("button", { name: "Cancel" }),
     ).not.toBeInTheDocument();
     expect(fetch).not.toHaveBeenCalledWith(
-      "http://localhost:3000/developers/d1",
+      `${DEFAULT_API_BASE_URL}/developers/d1`,
       expect.objectContaining({ method: "DELETE" }),
     );
   });

@@ -101,22 +101,49 @@ pnpm --filter backend dev
 pnpm --filter doc dev
 ```
 
+### Running the full stack with Docker Compose
+
+`docker-compose.yml` also defines `migrator`, `backend`, and `frontend`
+services that build production images from `apps/backend/Dockerfile` and
+`apps/frontend/Dockerfile`. Bring up the whole application, including the
+database, migrations, and both apps, with:
+
+```sh
+docker compose up -d
+```
+
+The `migrator` service applies Prisma migrations and exits before `backend`
+starts. Pass build-time secrets such as `OPENAI_API_KEY` as environment
+variables on the host, or in a `.env` file next to `docker-compose.yml`, since
+they are forwarded to the `backend` service. The frontend image is built with
+`VITE_API_BASE_URL` baked in at build time, so rebuild it (`docker compose
+build frontend`) if the backend's reachable origin changes.
+
 ## Configuration
 
 Backend settings are read from `apps/backend/.env`:
 
-| Variable                    | Required | Default       | Purpose                                  |
-| --------------------------- | -------- | ------------- | ---------------------------------------- |
-| `DATABASE_URL`              | Yes      | —             | PostgreSQL connection string             |
-| `PORT`                      | No       | `3100`        | Backend HTTP port                        |
-| `AI_PROVIDER`               | No       | `openai`      | Agent-planning provider                  |
-| `OPENAI_MODEL`              | No       | `gpt-4o-mini` | Model used to generate task plans        |
-| `OPENAI_API_KEY`            | No       | —             | Enables AI task-plan proposals           |
-| `AGENT_PLANNING_TIMEOUT_MS` | No       | `15000`       | Provider request timeout in milliseconds |
+| Variable                     | Required | Default                 | Purpose                                                 |
+| ---------------------------- | -------- | ----------------------- | ------------------------------------------------------- |
+| `DATABASE_URL`               | Yes      | —                       | PostgreSQL connection string                            |
+| `PORT`                       | No       | `3100`                  | Backend HTTP port                                       |
+| `FRONTEND_URL`               | No       | `http://localhost:3000` | Origin allowed by CORS                                  |
+| `AI_PROVIDER`                | No       | `openai`                | Agent-planning provider                                 |
+| `OPENAI_MODEL`               | No       | `gpt-4o-mini`           | Model used to generate task plans                       |
+| `OPENAI_API_KEY`             | Yes      | —                       | Required for AI task-plan proposals and skill inference |
+| `AGENT_PLANNING_TIMEOUT_MS`  | No       | `15000`                 | Provider request timeout in milliseconds                |
+| `SKILL_INFERENCE_TIMEOUT_MS` | No       | `5000`                  | Required-skill inference timeout in milliseconds        |
 
-Agent planning remains disabled and returns `AGENT_UNAVAILABLE` when no API key
-is configured. Applying an already reviewed proposal does not require an API
-key.
+Without `OPENAI_API_KEY`, agent-assisted task planning stays disabled and
+returns `AGENT_UNAVAILABLE` (applying an already reviewed proposal is
+unaffected), and automatic required-skill inference on task creation falls
+back to leaving new tasks untagged. Set `OPENAI_API_KEY` to enable both;
+`AI_PROVIDER`/`OPENAI_MODEL`/`AGENT_PLANNING_TIMEOUT_MS`/
+`SKILL_INFERENCE_TIMEOUT_MS` all read from the same key.
+
+Never commit `apps/backend/.env` or share its contents — `OPENAI_API_KEY` is a
+live secret. If a key is ever pasted into a chat, log, or ticket, rotate it in
+the OpenAI dashboard.
 
 The frontend uses `VITE_API_BASE_URL`, which defaults to
 `http://localhost:3100`. Copy `apps/frontend/.env.example` to

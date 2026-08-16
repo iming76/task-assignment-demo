@@ -16,6 +16,7 @@ import {
   type AgentOrchestrationProvider,
 } from "../lib/agent-orchestration/agent-orchestration-provider.js";
 import type { PlannedTaskNode } from "../lib/agent-orchestration/decision-schema.js";
+import type { CategoryRepository } from "../lib/repositories/category-repository.js";
 import type { DeveloperRepository } from "../lib/repositories/developer-repository.js";
 import type { SkillRepository } from "../lib/repositories/skill-repository.js";
 import type { TaskRepository } from "../lib/repositories/task-repository.js";
@@ -34,6 +35,7 @@ export interface AgentTaskService {
 export function createAgentTaskService(
   provider: AgentOrchestrationProvider,
   skillRepository: SkillRepository,
+  categoryRepository: CategoryRepository,
   developerRepository: DeveloperRepository,
   taskRepository: TaskRepository,
   transactionRunner: TransactionRunner,
@@ -42,12 +44,19 @@ export function createAgentTaskService(
     input: AgentTaskRequest,
   ): Promise<AgentTaskResponse> => {
     validateConversation(input);
-    const skills = await skillRepository.list();
+    const [skills, categories] = await Promise.all([
+      skillRepository.list(),
+      categoryRepository.list(),
+    ]);
     const listedSkillIds = new Set(skills.map((skill) => skill.id));
 
     let result;
     try {
-      result = await provider.decide({ messages: input.messages, skills });
+      result = await provider.decide({
+        messages: input.messages,
+        skills,
+        categories,
+      });
     } catch (error) {
       if (error instanceof AgentOrchestrationProviderError) {
         throw new AgentUnavailableError(

@@ -60,6 +60,7 @@ function buildTestApp(
 ) {
   const developerRepository = new PrismaDeveloperRepository(prisma);
   const skillRepository = new PrismaSkillRepository(prisma);
+  const categoryRepository = new PrismaCategoryRepository(prisma);
   const taskRepository =
     options.taskRepository ?? new PrismaTaskRepository(prisma);
   return buildApp(
@@ -73,12 +74,11 @@ function buildTestApp(
       ),
       developerService: createDeveloperService(developerRepository),
       skillService: createSkillService(skillRepository),
-      categoryService: createCategoryService(
-        new PrismaCategoryRepository(prisma),
-      ),
+      categoryService: createCategoryService(categoryRepository),
       agentTaskService: createAgentTaskService(
         options.provider ?? new NotConfiguredAgentOrchestrationProvider(),
         skillRepository,
+        categoryRepository,
         developerRepository,
         taskRepository,
         new PrismaTransactionRunner(prisma),

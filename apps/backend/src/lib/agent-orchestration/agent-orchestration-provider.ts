@@ -1,9 +1,10 @@
-import type { AgentTaskMessage, Skill } from "@repo/shared-types";
+import type { AgentTaskMessage, Category, Skill } from "@repo/shared-types";
 import type { AgentDecision } from "./decision-schema.js";
 
 export interface AgentOrchestrationContext {
   messages: AgentTaskMessage[];
   skills: Skill[];
+  categories: Category[];
 }
 
 export interface AgentOrchestrationResult {

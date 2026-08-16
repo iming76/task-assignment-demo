@@ -61,12 +61,19 @@ export class OpenAiAgentOrchestrationProvider implements AgentOrchestrationProvi
             inputSchema: z.object({}),
             execute: () => {
               skillCatalogListed = true;
+              const categoryNamesById = new Map(
+                context.categories.map((category) => [
+                  category.id,
+                  category.name,
+                ]),
+              );
               return context.skills.map(
                 ({ id, name, description, categoryId }) => ({
                   id,
                   name,
                   description,
                   categoryId,
+                  categoryName: categoryNamesById.get(categoryId) ?? null,
                 }),
               );
             },

@@ -37,6 +37,7 @@ const env = loadEnv();
 
 const developerRepository = new PrismaDeveloperRepository(prisma);
 const skillRepository = new PrismaSkillRepository(prisma);
+const categoryRepository = new PrismaCategoryRepository(prisma);
 const taskRepository = new PrismaTaskRepository(prisma);
 
 const agentOrchestrationProvider: AgentOrchestrationProvider =
@@ -71,12 +72,11 @@ const app = buildApp(
     ),
     developerService: createDeveloperService(developerRepository),
     skillService: createSkillService(skillRepository),
-    categoryService: createCategoryService(
-      new PrismaCategoryRepository(prisma),
-    ),
+    categoryService: createCategoryService(categoryRepository),
     agentTaskService: createAgentTaskService(
       agentOrchestrationProvider,
       skillRepository,
+      categoryRepository,
       developerRepository,
       taskRepository,
       new PrismaTransactionRunner(prisma),

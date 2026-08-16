@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import type { Skill } from "@repo/shared-types";
+import type { Category, Skill } from "@repo/shared-types";
 import { OpenAiAgentOrchestrationProvider } from "../../src/lib/agent-orchestration/openai-agent-orchestration-provider.js";
 import { AgentOrchestrationProviderError } from "../../src/lib/agent-orchestration/agent-orchestration-provider.js";
 
@@ -17,6 +17,8 @@ const skills: Skill[] = [
     categoryId: "category-backend",
   },
 ];
+
+const categories: Category[] = [{ id: "category-backend", name: "Backend" }];
 
 function provider() {
   return new OpenAiAgentOrchestrationProvider({
@@ -53,6 +55,7 @@ describe("OpenAiAgentOrchestrationProvider", () => {
           name: "Artificial Intelligence",
           description: "Machine learning and AI features.",
           categoryId: "category-backend",
+          categoryName: "Backend",
         },
       ]);
       await tools.submitDecision.execute({
@@ -73,6 +76,7 @@ describe("OpenAiAgentOrchestrationProvider", () => {
     const result = await provider().decide({
       messages: [{ role: "user", content: "Build AI moderation." }],
       skills,
+      categories,
     });
     expect(result.skillCatalogListed).toBe(true);
   });
@@ -99,6 +103,7 @@ describe("OpenAiAgentOrchestrationProvider", () => {
     const result = await provider().decide({
       messages: [{ role: "user", content: "Build quantum integration." }],
       skills: [],
+      categories: [],
     });
     expect(result.skillCatalogListed).toBe(true);
     expect(result.decision.action).toBe("create_task_tree");
@@ -125,6 +130,7 @@ describe("OpenAiAgentOrchestrationProvider", () => {
       provider().decide({
         messages: [{ role: "user", content: "Build it." }],
         skills,
+        categories,
       }),
     ).rejects.toThrow(AgentOrchestrationProviderError);
   });
@@ -135,6 +141,7 @@ describe("OpenAiAgentOrchestrationProvider", () => {
       provider().decide({
         messages: [{ role: "user", content: "Build it." }],
         skills,
+        categories,
       }),
     ).rejects.toThrow("exhausted its tool steps");
   });
@@ -145,6 +152,7 @@ describe("OpenAiAgentOrchestrationProvider", () => {
       provider().decide({
         messages: [{ role: "user", content: "Build it." }],
         skills,
+        categories,
       }),
     ).rejects.toThrow(AgentOrchestrationProviderError);
   });

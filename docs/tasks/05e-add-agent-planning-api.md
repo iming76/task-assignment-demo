@@ -17,7 +17,7 @@ Generate reviewable recursive task drafts without writes and atomically apply re
 
 ## Scope
 
-- [ ] Add typed proposal/apply OpenAPI operations and an injectable planning-service boundary.
+- [ ] Add typed proposal/apply endpoints and an injectable planning-service boundary.
 - [ ] Generate structured recursive drafts using current skills and developers; reject unknown IDs and clear ineligible generated assignees.
 - [ ] Keep proposal generation write-free and map configuration/provider failures to safe `AGENT_UNAVAILABLE` responses.
 - [ ] Revalidate every edited ID and assignment during apply without calling the provider.

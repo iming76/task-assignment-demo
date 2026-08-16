@@ -24,7 +24,7 @@ unchanged. See
 
 ## Input validation lives on the server
 
-Every planned endpoint must validate its input against the OpenAPI contract (see [Architecture — contract-first API](./architecture.md#contract-first-api)) regardless of what the frontend already checked client-side. Errors use a single consistent response shape so failures are predictable and don't leak internal details (stack traces, ORM errors, raw exception messages) to the caller.
+Every planned endpoint must validate its input at the server boundary (see [Architecture — shared API contracts](./architecture.md#shared-api-contracts)) regardless of what the frontend already checked client-side. Errors use a single consistent response shape so failures are predictable and don't leak internal details (stack traces, ORM errors, raw exception messages) to the caller.
 
 ## Secrets
 

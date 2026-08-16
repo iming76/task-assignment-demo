@@ -39,7 +39,7 @@ task-assignment/
 | Shared types     | Planned `packages/shared-types`, imported by both apps                                 |
 | Frontend         | React + TypeScript (Vite), `apps/frontend`                                             |
 | doc              | Docusaurus, `apps/doc`, publishing the root `docs/` tree                               |
-| Backend          | Planned Node.js + TypeScript (Fastify), and OpenAPI                                    |
+| Backend          | Planned Node.js + TypeScript (Fastify)                                                 |
 | ORM              | Planned Prisma                                                                         |
 | Database         | Planned PostgreSQL                                                                     |
 | LLM              | Planned Vercel AI SDK behind a provider-agnostic service                               |

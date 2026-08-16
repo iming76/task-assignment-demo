@@ -21,11 +21,11 @@ Implement deterministic task, developer, skill, and category list/detail reads.
 - [ ] Implement task list/detail endpoints, keeping list responses flat with `parentTaskId`.
 - [ ] Implement developer, skill, and category list/detail endpoints.
 - [ ] Apply documented stable ordering and `NOT_FOUND` behavior.
-- [ ] Add OpenAPI/handler integration tests for every success and error response.
+- [ ] Add route integration tests for every success and error response.
 
 ## Acceptance checks
 
-- [ ] Runtime responses conform to OpenAPI and shared types.
+- [ ] Runtime responses conform to shared types and the documented API contract.
 - [ ] Reads expose no Prisma-specific shapes and perform no writes.
 
 ## Unlocks

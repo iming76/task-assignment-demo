@@ -38,6 +38,6 @@ Task Assignment routes work to the developer who can actually do it. Every task 
 - [AI Guidelines](./constitution/ai-guidelines.md) — how an AI agent should work in this repo
 - [OpenSpec change start order](./tasks/overview.md) — the complete dependency graph and numbered implementation waves
 - [Backend workspace](./tasks/01a-add-backend-workspace.md), [shared domain types](./tasks/01b-add-shared-domain-types.md), and [shared UI system](./tasks/01c-add-shared-ui-system.md) — the three changes that can start immediately
-- [Backend API foundation](./tasks/03b-add-backend-api-foundation.md) and wave `04` — contract-first resource behavior and assignment rules
+- [Backend API foundation](./tasks/03b-add-backend-api-foundation.md) and wave `04` — documented resource behavior and assignment rules
 - Wave `05` — recursive completion, skill inference, task/resource UI, and agent planning
 - Waves `07`–`08` — pruned containers, Docker Compose, integrated validation, and delivery documentation

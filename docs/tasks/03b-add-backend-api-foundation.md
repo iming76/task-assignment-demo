@@ -13,12 +13,12 @@ Starts after [Add Relational Task Schema](./02a-add-relational-task-schema.md) a
 
 ## Outcome
 
-Establish the contract-first Fastify service, dependency boundaries, runtime validation, and consistent public errors.
+Establish the Fastify service, dependency boundaries, runtime validation, and consistent public errors.
 
 ## Scope
 
-- [ ] Add Fastify, `fastify-openapi-glue`, application test tooling, and server scripts.
-- [ ] Create the split OpenAPI contract with documented operations, schemas, IDs, responses, and examples.
+- [ ] Add Fastify, application test tooling, and server scripts.
+- [ ] Define routes with documented inputs, responses, and examples.
 - [ ] Add production and test bootstraps with injectable dependencies.
 - [ ] Define handler, application-service, repository, and transaction boundaries without implementing resource behavior.
 - [ ] Import public DTOs from `@repo/shared-types` and add one mapper for all documented error codes.
@@ -26,7 +26,7 @@ Establish the contract-first Fastify service, dependency boundaries, runtime val
 
 ## Acceptance checks
 
-- [ ] OpenAPI drives routing and validation.
+- [ ] Fastify validates requests at the route boundary.
 - [ ] A test server boots with fake repositories and returns the consistent error envelope.
 
 ## Unlocks

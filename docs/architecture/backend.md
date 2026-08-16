@@ -13,7 +13,6 @@ sequence.
 ## Stack
 
 - **Framework:** Fastify
-- **Contract:** OpenAPI
 - **ORM:** Prisma
 - **Database:** PostgreSQL
 - **Shared DTOs:** `packages/shared-types`
@@ -21,13 +20,12 @@ sequence.
 
 ## Target Layout
 
-The structure follows common Fastify conventions while keeping the API
-contract and persistence schema visible at the application root:
+The structure follows common Fastify conventions while keeping the persistence
+schema visible at the application root:
 
 ```text
 apps/backend/
 ├── config/                    # Environment parsing and runtime configuration
-├── openapi/                   # Routes, schemas, and operation IDs
 ├── prisma/                    # Database schema, migrations, and seed data
 ├── src/
 │   ├── plugins/               # Shared Fastify integrations such as Prisma
@@ -49,9 +47,9 @@ apps/backend/
 ```
 
 Exact filenames may evolve during implementation. The directory boundaries and
-dependency direction should remain stable. In particular, route folders do not
-define competing request or response schemas: OpenAPI owns transport shapes,
-and `packages/shared-types` owns the TypeScript DTOs used across applications.
+dependency direction should remain stable. In particular, route folders use
+the TypeScript DTOs from `packages/shared-types` rather than defining competing
+request or response shapes.
 
 ## Responsibilities
 
@@ -75,7 +73,7 @@ loads runtime configuration and starts listening.
 
 ## Request Flow
 
-1. Fastify validates an incoming request against OpenAPI.
+1. Fastify validates an incoming request at the route boundary.
 2. A route handler converts the validated input into a service call.
 3. The service enforces domain rules and coordinates repositories or skill
    inference through injected interfaces.
@@ -85,8 +83,7 @@ loads runtime configuration and starts listening.
 
 ## Key Rules
 
-- OpenAPI defines the HTTP contract, while `packages/shared-types` provides the
-  DTOs used by both applications.
+- `packages/shared-types` provides the HTTP DTOs used by both applications.
 - The service layer enforces assignment eligibility and recursive task status
   rules; related writes are transactional.
 - Skill inference runs only when required skills are omitted, validates results

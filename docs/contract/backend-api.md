@@ -9,11 +9,8 @@ The human-readable target request/response contract for the planned
 `apps/backend`, elaborating the plans in
 [Backend API Foundation](../tasks/03b-add-backend-api-foundation.md),
 [Task Tree UI](../tasks/05c-add-task-tree-ui.md), and the
-[Contract-first API](../constitution/architecture.md#contract-first-api)
-rule. The machine-readable contract lives under `apps/backend/openapi`, and
-this page records the proposed API design. Once that specification exists,
-OpenAPI is the source of truth and this page must summarize it rather than
-define a competing contract. Types will mirror
+[shared API contracts](../constitution/architecture.md#shared-api-contracts)
+rule. This page records the proposed API design. Types will mirror
 [Data Model](../architecture/data-model.md) and be shared via the planned
 `packages/shared-types` — nothing here should be redefined independently in
 either app.

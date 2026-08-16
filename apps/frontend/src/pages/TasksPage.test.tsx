@@ -422,6 +422,161 @@ describe("TasksPage", () => {
     ).toBeInTheDocument();
   });
 
+  it("marks a task done and reflects the successful status change", async () => {
+    const user = userEvent.setup();
+    let currentRoot = root;
+    mockApi({
+      "GET /tasks": () => Promise.resolve({ status: 200, body: [currentRoot] }),
+      ...noDevelopers,
+      ...noSkills,
+      "PATCH /tasks/root": () => {
+        currentRoot = { ...root, status: "DONE" };
+        return Promise.resolve({ status: 200, body: currentRoot });
+      },
+    });
+
+    renderWithQueryClient(<TasksPage />);
+    await screen.findByText("Root");
+
+    await user.click(screen.getByRole("button", { name: "Mark done" }));
+
+    await waitFor(() =>
+      expect(fetch).toHaveBeenCalledWith(
+        `${DEFAULT_API_BASE_URL}/tasks/root`,
+        expect.objectContaining({
+          method: "PATCH",
+          body: JSON.stringify({ status: "DONE" }),
+        }),
+      ),
+    );
+    expect(
+      await screen.findByRole("button", { name: "Reopen" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows leaf-up guidance and keeps the previous status when SUBTASKS_INCOMPLETE is returned", async () => {
+    const user = userEvent.setup();
+    mockApi({
+      "GET /tasks": { status: 200, body: [root] },
+      ...noDevelopers,
+      ...noSkills,
+      "PATCH /tasks/root": {
+        status: 409,
+        body: {
+          error: {
+            code: "SUBTASKS_INCOMPLETE",
+            message:
+              "Task child is still TODO; cannot complete a task while a descendant is incomplete",
+          },
+        },
+      },
+    });
+
+    renderWithQueryClient(<TasksPage />);
+    await screen.findByText("Root");
+
+    await user.click(screen.getByRole("button", { name: "Mark done" }));
+
+    expect(
+      await screen.findByText(
+        "Task child is still TODO; cannot complete a task while a descendant is incomplete Complete its subtasks first, starting from the leaves and working up.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Mark done" }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("TODO")).toBeInTheDocument();
+    expect(screen.queryByText("DONE")).not.toBeInTheDocument();
+  });
+
+  it("shows root-down guidance when COMPLETED_ANCESTOR is returned", async () => {
+    const user = userEvent.setup();
+    const doneChild = { ...child, status: "DONE" };
+    mockApi({
+      "GET /tasks": { status: 200, body: [root, doneChild] },
+      ...noDevelopers,
+      ...noSkills,
+      "PATCH /tasks/child": {
+        status: 409,
+        body: {
+          error: {
+            code: "COMPLETED_ANCESTOR",
+            message:
+              "Task root is already DONE; cannot reopen a task beneath it",
+          },
+        },
+      },
+    });
+
+    renderWithQueryClient(<TasksPage />);
+    await screen.findByText("Child");
+
+    const childCard = screen
+      .getByText("Child")
+      .closest('[data-slot="card"]') as HTMLElement;
+    await user.click(within(childCard).getByRole("button", { name: "Reopen" }));
+
+    expect(
+      await screen.findByText(
+        "Task root is already DONE; cannot reopen a task beneath it Reopen the ancestor tasks first, starting from the root and working down.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(childCard).getByRole("button", { name: "Reopen" }),
+    ).toBeInTheDocument();
+    expect(within(childCard).getByText("DONE")).toBeInTheDocument();
+  });
+
+  it("allows retrying a status update after a failure", async () => {
+    const user = userEvent.setup();
+    let attempts = 0;
+    let currentRoot = root;
+    mockApi({
+      "GET /tasks": () => Promise.resolve({ status: 200, body: [currentRoot] }),
+      ...noDevelopers,
+      ...noSkills,
+      "PATCH /tasks/root": () => {
+        attempts += 1;
+        if (attempts === 1) {
+          return Promise.resolve({
+            status: 409,
+            body: {
+              error: {
+                code: "SUBTASKS_INCOMPLETE",
+                message: "Task child is still TODO.",
+              },
+            },
+          });
+        }
+        currentRoot = { ...root, status: "DONE" };
+        return Promise.resolve({
+          status: 200,
+          body: currentRoot,
+        });
+      },
+    });
+
+    renderWithQueryClient(<TasksPage />);
+    await screen.findByText("Root");
+
+    await user.click(screen.getByRole("button", { name: "Mark done" }));
+    await screen.findByText(
+      "Task child is still TODO. Complete its subtasks first, starting from the leaves and working up.",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Mark done" }));
+
+    await waitFor(() => expect(attempts).toBe(2));
+    expect(
+      await screen.findByRole("button", { name: "Reopen" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Task child is still TODO. Complete its subtasks first, starting from the leaves and working up.",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
   it("shows orphaned tasks in a visible recovery section instead of hiding them", async () => {
     const orphan = {
       ...root,

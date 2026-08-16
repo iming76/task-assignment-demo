@@ -27,6 +27,21 @@ function errorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiClientError ? error.message : fallback;
 }
 
+const STATUS_CONFLICT_GUIDANCE: Record<string, string> = {
+  SUBTASKS_INCOMPLETE:
+    "Complete its subtasks first, starting from the leaves and working up.",
+  COMPLETED_ANCESTOR:
+    "Reopen the ancestor tasks first, starting from the root and working down.",
+};
+
+function statusErrorMessage(error: unknown): string {
+  if (!(error instanceof ApiClientError)) {
+    return "Unable to update task status.";
+  }
+  const guidance = STATUS_CONFLICT_GUIDANCE[error.code];
+  return guidance ? `${error.message} ${guidance}` : error.message;
+}
+
 const UNASSIGNED = "__unassigned__";
 
 interface TaskTreeNodeProps {
@@ -45,6 +60,7 @@ export function TaskTreeNodeView({
   const { task, children } = node;
   const patchTask = usePatchTask();
   const createTask = useCreateTask();
+  const statusPatch = usePatchTask();
 
   const [isEditing, setIsEditing] = useState(false);
   const [editTitle, setEditTitle] = useState(task.title);
@@ -123,6 +139,13 @@ export function TaskTreeNodeView({
         },
       },
     );
+  }
+
+  function toggleStatus() {
+    statusPatch.mutate({
+      id: task.id,
+      input: { status: task.status === "DONE" ? "TODO" : "DONE" },
+    });
   }
 
   return (
@@ -210,6 +233,18 @@ export function TaskTreeNodeView({
                 >
                   {task.status}
                 </Badge>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={statusPatch.isPending}
+                  onClick={toggleStatus}
+                >
+                  {statusPatch.isPending
+                    ? "Updating…"
+                    : task.status === "DONE"
+                      ? "Reopen"
+                      : "Mark done"}
+                </Button>
                 <Button variant="outline" size="sm" onClick={startEdit}>
                   Edit
                 </Button>
@@ -240,6 +275,9 @@ export function TaskTreeNodeView({
               Assignee:{" "}
               {task.assigneeId ? assigneeName(task.assigneeId) : "Unassigned"}
             </p>
+            {statusPatch.isError ? (
+              <FieldError>{statusErrorMessage(statusPatch.error)}</FieldError>
+            ) : null}
           </>
         )}
 

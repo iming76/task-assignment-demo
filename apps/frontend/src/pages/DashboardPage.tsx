@@ -44,7 +44,7 @@ export function DashboardPage() {
   const hasNoDevelopers = developers.length === 0;
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
           <CardTitle>Welcome to Task Assignment</CardTitle>

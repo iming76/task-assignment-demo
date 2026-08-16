@@ -74,7 +74,7 @@ export function SkillsPage() {
   const skills = skillsQuery.data ?? [];
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
           <CardTitle>Add a skill</CardTitle>

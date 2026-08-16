@@ -71,7 +71,7 @@ export function AgentTaskPage() {
 
   if (created) {
     return (
-      <div className="mx-auto flex max-w-3xl flex-col gap-6">
+      <div className="flex flex-col gap-6">
         <Card>
           <CardHeader>
             <CardTitle>Tasks created</CardTitle>
@@ -125,7 +125,7 @@ export function AgentTaskPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+    <div className="flex flex-col gap-6">
       <Card>
         <CardHeader>
           <CardTitle>Agent-assisted task creation</CardTitle>

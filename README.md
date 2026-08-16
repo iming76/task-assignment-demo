@@ -1,159 +1,155 @@
-# Turborepo starter
+# Task Assignment Demo
 
-This Turborepo starter is maintained by the Turborepo core team.
+A full-stack task assignment application for organizing nested work, matching
+developers to the skills a task requires, and reviewing AI-generated task plans
+before they are saved.
 
-## Using this example
+The repository is a pnpm/Turborepo monorepo. Shared domain and API types live in
+one package so the React frontend and Fastify backend use the same contracts.
 
-Run the following command:
+## Features
 
-```sh
-npx create-turbo@latest
+- Create and manage tasks, subtasks, developers, skills, and skill categories.
+- Assign only developers whose skills satisfy a task's requirements.
+- Track task completion while enforcing parent/subtask completion rules.
+- Generate recursive task proposals with an LLM, review them, and apply them in
+  a validated transaction.
+- Persist application data in PostgreSQL through Prisma.
+- Share typed request, response, domain, and error contracts across applications.
+
+## Tech stack
+
+- React 19, Vite, TanStack Query, Tailwind CSS, and shadcn/ui
+- Node.js, TypeScript, Fastify, Prisma, and PostgreSQL
+- Vercel AI SDK with an OpenAI provider for optional agent planning
+- Vitest, React Testing Library, ESLint, Prettier, and Storybook
+- pnpm workspaces and Turborepo
+
+## Repository structure
+
+```text
+apps/
+  backend/           Fastify API, services, repositories, and Prisma schema
+  frontend/          React application
+  doc/               Docusaurus documentation site
+packages/
+  shared-types/      Domain models and public API contracts
+  ui/                Shared UI components and Storybook stories
+  eslint-config/     Shared ESLint configuration
+  typescript-config/ Shared TypeScript configuration
+docs/                Requirements, architecture, API contract, and task plans
+openspec/            OpenSpec specifications and change history
 ```
 
-## What's inside?
+## Prerequisites
 
-This Turborepo includes the following packages/apps:
+- Node.js 20 or newer
+- pnpm 9
+- Docker, or a locally accessible PostgreSQL 16 instance
 
-### Apps and Packages
+## Local setup
 
-- `docs`: a [Next.js](https://nextjs.org/) app
-- `web`: another [Next.js](https://nextjs.org/) app
-- `@repo/ui`: a stub React component library shared by both `web` and `docs` applications
-- `@repo/eslint-config`: `eslint` configurations (includes `eslint-config-next` and `eslint-config-prettier`)
-- `@repo/typescript-config`: `tsconfig.json`s used throughout the monorepo
-
-Each package/app is 100% [TypeScript](https://www.typescriptlang.org/).
-
-### Utilities
-
-This Turborepo has some additional tools already setup for you:
-
-- [TypeScript](https://www.typescriptlang.org/) for static type checking
-- [ESLint](https://eslint.org/) for code linting
-- [Prettier](https://prettier.io) for code formatting
-
-### Build
-
-To build all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+Install dependencies:
 
 ```sh
-cd my-turborepo
-turbo build
+pnpm install
 ```
 
-Without global `turbo`, use your package manager:
+Create the backend environment file:
 
 ```sh
-cd my-turborepo
-npx turbo build
-pnpm dlx turbo build
-pnpm exec turbo build
+cp apps/backend/.env.example apps/backend/.env
 ```
 
-You can build a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+Start PostgreSQL with Docker Compose:
 
 ```sh
-turbo build --filter=docs
+docker compose up -d db
 ```
 
-Without global `turbo`:
+Generate the Prisma client, apply migrations, and seed the database:
 
 ```sh
-npx turbo build --filter=docs
-pnpm exec turbo build --filter=docs
-pnpm exec turbo build --filter=docs
+pnpm --filter backend db:generate
+pnpm --filter backend db:migrate
+pnpm --filter backend db:seed
 ```
 
-### Develop
-
-To develop all apps and packages, run the following command:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
+Start the development workspaces:
 
 ```sh
-cd my-turborepo
-turbo dev
+pnpm dev
 ```
 
-Without global `turbo`, use your package manager:
+The local services use these ports:
+
+| Service    | URL                   |
+| ---------- | --------------------- |
+| Frontend   | http://localhost:3000 |
+| Backend    | http://localhost:3100 |
+| Docs       | http://localhost:3200 |
+| Storybook  | http://localhost:6006 |
+| PostgreSQL | localhost:5434        |
+
+To run only one application, use a workspace filter. For example:
 
 ```sh
-cd my-turborepo
-npx turbo dev
-pnpm exec turbo dev
-pnpm exec turbo dev
+pnpm --filter frontend dev
+pnpm --filter backend dev
+pnpm --filter doc dev
 ```
 
-You can develop a specific package by using a [filter](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters):
+## Configuration
 
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
+Backend settings are read from `apps/backend/.env`:
+
+| Variable                    | Required | Default       | Purpose                                  |
+| --------------------------- | -------- | ------------- | ---------------------------------------- |
+| `DATABASE_URL`              | Yes      | —             | PostgreSQL connection string             |
+| `PORT`                      | No       | `3100`        | Backend HTTP port                        |
+| `AI_PROVIDER`               | No       | `openai`      | Agent-planning provider                  |
+| `OPENAI_MODEL`              | No       | `gpt-4o-mini` | Model used to generate task plans        |
+| `OPENAI_API_KEY`            | No       | —             | Enables AI task-plan proposals           |
+| `AGENT_PLANNING_TIMEOUT_MS` | No       | `15000`       | Provider request timeout in milliseconds |
+
+Agent planning remains disabled and returns `AGENT_UNAVAILABLE` when no API key
+is configured. Applying an already reviewed proposal does not require an API
+key.
+
+The frontend uses `VITE_API_BASE_URL`, which defaults to
+`http://localhost:3100`. Copy `apps/frontend/.env.example` to
+`apps/frontend/.env` only when you need to override it.
+
+## Validation commands
 
 ```sh
-turbo dev --filter=web
+pnpm build
+pnpm test
+pnpm lint
+pnpm check-types
 ```
 
-Without global `turbo`:
+Run the live agent-planning verification separately after configuring an OpenAI
+API key:
 
 ```sh
-npx turbo dev --filter=web
-pnpm exec turbo dev --filter=web
-pnpm exec turbo dev --filter=web
+pnpm --filter backend verify:agent-planning
 ```
 
-### Remote Caching
+## Architecture
 
-> [!TIP]
-> Vercel Remote Cache is free for all plans. Get started today at [vercel.com](https://vercel.com/signup?utm_source=remote-cache-sdk&utm_campaign=free_remote_cache).
+Turborepo coordinates builds and checks across independently runnable apps. Its
+main architectural benefit here is the `@repo/shared-types` workspace: the
+backend publishes the same domain models and transport contracts that the
+frontend consumes, preventing API type drift without coupling either app to the
+other's implementation.
 
-Turborepo can use a technique known as [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching) to share cache artifacts across machines, enabling you to share build caches with your team and CI/CD pipelines.
+The backend keeps HTTP handlers, business services, and persistence repositories
+separate. The frontend keeps API transport, server-state hooks, and presentation
+components separate. Agent-generated plans are treated as untrusted drafts:
+users review them first, and the backend revalidates the complete tree before a
+transactional write.
 
-By default, Turborepo will cache locally. To enable Remote Caching you will need an account with Vercel. If you don't have an account you can [create one](https://vercel.com/signup?utm_source=turborepo-examples), then enter the following commands:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed (recommended):
-
-```sh
-cd my-turborepo
-turbo login
-```
-
-Without global `turbo`, use your package manager:
-
-```sh
-cd my-turborepo
-npx turbo login
-pnpm exec turbo login
-pnpm exec turbo login
-```
-
-This will authenticate the Turborepo CLI with your [Vercel account](https://vercel.com/docs/concepts/personal-accounts/overview).
-
-Next, you can link your Turborepo to your Remote Cache by running the following command from the root of your Turborepo:
-
-With [global `turbo`](https://turborepo.dev/docs/getting-started/installation#global-installation) installed:
-
-```sh
-turbo link
-```
-
-Without global `turbo`:
-
-```sh
-npx turbo link
-pnpm exec turbo link
-pnpm exec turbo link
-```
-
-## Useful Links
-
-Learn more about the power of Turborepo:
-
-- [Tasks](https://turborepo.dev/docs/crafting-your-repository/running-tasks)
-- [Caching](https://turborepo.dev/docs/crafting-your-repository/caching)
-- [Remote Caching](https://turborepo.dev/docs/core-concepts/remote-caching)
-- [Filtering](https://turborepo.dev/docs/crafting-your-repository/running-tasks#using-filters)
-- [Configuration Options](https://turborepo.dev/docs/reference/configuration)
-- [CLI Usage](https://turborepo.dev/docs/reference/command-line-reference)
+See the [project documentation](docs/requirements.md),
+[architecture overview](docs/architecture/overview.md), and
+[backend API contract](docs/contract/backend-api.md) for more detail.

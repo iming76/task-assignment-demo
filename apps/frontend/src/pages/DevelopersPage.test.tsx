@@ -86,9 +86,14 @@ describe("DevelopersPage", () => {
 
     expect(await screen.findByText("No developers yet")).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("Name"), "Ada");
-    await user.click(screen.getByRole("checkbox", { name: "React" }));
     await user.click(screen.getByRole("button", { name: "Add developer" }));
+    const dialog = screen.getByRole("dialog");
+
+    await user.type(within(dialog).getByLabelText("Name"), "Ada");
+    await user.click(within(dialog).getByRole("checkbox", { name: "React" }));
+    await user.click(
+      within(dialog).getByRole("button", { name: "Add developer" }),
+    );
 
     expect(fetch).toHaveBeenCalledWith(
       `${DEFAULT_API_BASE_URL}/developers`,

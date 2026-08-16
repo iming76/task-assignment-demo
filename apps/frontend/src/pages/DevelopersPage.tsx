@@ -6,8 +6,11 @@ import {
   Button,
   Card,
   CardContent,
-  CardHeader,
   CardTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   Field,
   FieldError,
   FieldLabel,
@@ -46,6 +49,7 @@ export function DevelopersPage() {
   const [editName, setEditName] = useState("");
   const [editSkillIds, setEditSkillIds] = useState<string[]>([]);
   const [deleteTarget, setDeleteTarget] = useState<Developer | null>(null);
+  const [isAddOpen, setIsAddOpen] = useState(false);
 
   const skills = skillsQuery.data ?? [];
 
@@ -57,6 +61,7 @@ export function DevelopersPage() {
         onSuccess: () => {
           setName("");
           setSkillIds([]);
+          setIsAddOpen(false);
         },
       },
     );
@@ -96,11 +101,31 @@ export function DevelopersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Add a developer</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-lg font-semibold">Developers</h1>
+        <Button
+          onClick={() => {
+            createDeveloper.reset();
+            setIsAddOpen(true);
+          }}
+        >
+          Add developer
+        </Button>
+      </div>
+
+      <Dialog
+        open={isAddOpen}
+        onOpenChange={(open) => {
+          setIsAddOpen(open);
+          if (!open) {
+            createDeveloper.reset();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add a developer</DialogTitle>
+          </DialogHeader>
           <form className="flex flex-col gap-4" onSubmit={handleCreate}>
             <Field>
               <FieldLabel htmlFor="developer-name">Name</FieldLabel>
@@ -147,8 +172,8 @@ export function DevelopersPage() {
               {createDeveloper.isPending ? "Adding…" : "Add developer"}
             </Button>
           </form>
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
 
       {developers.length === 0 ? (
         <EmptyState

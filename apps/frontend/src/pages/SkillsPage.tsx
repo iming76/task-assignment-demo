@@ -6,8 +6,11 @@ import {
   Button,
   Card,
   CardContent,
-  CardHeader,
   CardTitle,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
   Field,
   FieldError,
   FieldLabel,
@@ -69,6 +72,7 @@ export function SkillsPage() {
   const [description, setDescription] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [deleteTarget, setDeleteTarget] = useState<Skill | null>(null);
+  const [isAddOpen, setIsAddOpen] = useState(false);
 
   const categories = categoriesQuery.data ?? [];
 
@@ -84,6 +88,7 @@ export function SkillsPage() {
           setName("");
           setDescription("");
           setCategoryId("");
+          setIsAddOpen(false);
         },
       },
     );
@@ -105,11 +110,31 @@ export function SkillsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Add a skill</CardTitle>
-        </CardHeader>
-        <CardContent>
+      <div className="flex items-center justify-between gap-3">
+        <h1 className="text-lg font-semibold">Skills</h1>
+        <Button
+          onClick={() => {
+            createSkill.reset();
+            setIsAddOpen(true);
+          }}
+        >
+          Add skill
+        </Button>
+      </div>
+
+      <Dialog
+        open={isAddOpen}
+        onOpenChange={(open) => {
+          setIsAddOpen(open);
+          if (!open) {
+            createSkill.reset();
+          }
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Add a skill</DialogTitle>
+          </DialogHeader>
           <form className="flex flex-col gap-4" onSubmit={handleCreate}>
             <Field>
               <FieldLabel htmlFor="skill-name">Name</FieldLabel>
@@ -163,8 +188,8 @@ export function SkillsPage() {
               {createSkill.isPending ? "Adding…" : "Add skill"}
             </Button>
           </form>
-        </CardContent>
-      </Card>
+        </DialogContent>
+      </Dialog>
 
       {skills.length === 0 ? (
         <EmptyState

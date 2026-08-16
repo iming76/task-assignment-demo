@@ -89,11 +89,16 @@ describe("SkillsPage", () => {
 
     expect(await screen.findByText("No skills yet")).toBeInTheDocument();
 
-    await user.type(screen.getByLabelText("Name"), "Node.js");
-    await user.type(screen.getByLabelText("Description"), "Runtime");
-    await user.click(screen.getByRole("combobox", { name: "Category" }));
-    await user.click(await screen.findByRole("option", { name: "Backend" }));
     await user.click(screen.getByRole("button", { name: "Add skill" }));
+    const dialog = screen.getByRole("dialog");
+
+    await user.type(within(dialog).getByLabelText("Name"), "Node.js");
+    await user.type(within(dialog).getByLabelText("Description"), "Runtime");
+    await user.click(
+      within(dialog).getByRole("combobox", { name: "Category" }),
+    );
+    await user.click(await screen.findByRole("option", { name: "Backend" }));
+    await user.click(within(dialog).getByRole("button", { name: "Add skill" }));
 
     expect(fetch).toHaveBeenCalledWith(
       `${DEFAULT_API_BASE_URL}/skills`,

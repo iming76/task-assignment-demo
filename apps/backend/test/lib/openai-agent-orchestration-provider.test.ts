@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Category, Skill } from "@repo/shared-types";
 import { OpenAiAgentOrchestrationProvider } from "../../src/lib/agent-orchestration/openai-agent-orchestration-provider.js";
 import { AgentOrchestrationProviderError } from "../../src/lib/agent-orchestration/agent-orchestration-provider.js";
@@ -48,6 +48,10 @@ function toolsFrom(rawOptions: unknown): MockAgentTools {
 }
 
 describe("OpenAiAgentOrchestrationProvider", () => {
+  beforeEach(() => {
+    mockGenerateText.mockReset();
+  });
+
   it("lists the complete canonical skill catalog before creation", async () => {
     mockGenerateText.mockImplementationOnce(async (rawOptions: unknown) => {
       const tools = toolsFrom(rawOptions);
@@ -183,6 +187,7 @@ describe("OpenAiAgentOrchestrationProvider", () => {
 
   it("rejects an exhausted tool loop without a submitted decision", async () => {
     mockGenerateText.mockResolvedValueOnce({});
+    mockGenerateText.mockResolvedValueOnce({});
     await expect(
       provider().decide({
         messages: [{ role: "user", content: "Build it." }],
@@ -192,7 +197,44 @@ describe("OpenAiAgentOrchestrationProvider", () => {
     ).rejects.toThrow("exhausted its tool steps");
   });
 
+  it("retries once after an exhausted tool loop and succeeds", async () => {
+    mockGenerateText.mockResolvedValueOnce({});
+    mockGenerateText.mockImplementationOnce(async (rawOptions: unknown) => {
+      const tools = toolsFrom(rawOptions);
+      await tools.listSkills.execute({});
+      await tools.submitDecision.execute({
+        action: "create_task_tree",
+        task: {
+          title: "Task",
+          description: "Description",
+          requiredSkillIds: [],
+          requiredRole: "Engineer",
+          unmatchedSkillRequirements: [],
+          subtasks: [
+            {
+              title: "Subtask",
+              description: "Description",
+              requiredSkillIds: [],
+              requiredRole: "Engineer",
+              unmatchedSkillRequirements: ["unknown technology"],
+              subtasks: [],
+            },
+          ],
+        },
+      });
+      return {};
+    });
+    const result = await provider().decide({
+      messages: [{ role: "user", content: "Build it." }],
+      skills,
+      categories,
+    });
+    expect(result.decision.action).toBe("create_task_tree");
+    expect(mockGenerateText).toHaveBeenCalledTimes(2);
+  });
+
   it("wraps provider and malformed-output failures", async () => {
+    mockGenerateText.mockRejectedValueOnce(new Error("boom"));
     mockGenerateText.mockRejectedValueOnce(new Error("boom"));
     await expect(
       provider().decide({

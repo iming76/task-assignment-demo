@@ -25,6 +25,7 @@ export interface OpenAiAgentOrchestrationProviderConfig {
   model: string;
   timeoutMs: number;
   maxSteps?: number;
+  maxAttempts?: number;
 }
 
 export function isSupportedAgentOrchestrationProvider(
@@ -37,14 +38,30 @@ export class OpenAiAgentOrchestrationProvider implements AgentOrchestrationProvi
   private readonly model: LanguageModel;
   private readonly timeoutMs: number;
   private readonly maxSteps: number;
+  private readonly maxAttempts: number;
 
   constructor(config: OpenAiAgentOrchestrationProviderConfig) {
     this.model = createOpenAI({ apiKey: config.apiKey })(config.model);
     this.timeoutMs = config.timeoutMs;
     this.maxSteps = config.maxSteps ?? 8;
+    this.maxAttempts = config.maxAttempts ?? 2;
   }
 
   async decide(
+    context: AgentOrchestrationContext,
+  ): Promise<AgentOrchestrationResult> {
+    let lastError: unknown;
+    for (let attempt = 1; attempt <= this.maxAttempts; attempt += 1) {
+      try {
+        return await this.attemptDecide(context);
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    throw lastError;
+  }
+
+  private async attemptDecide(
     context: AgentOrchestrationContext,
   ): Promise<AgentOrchestrationResult> {
     let skillCatalogListed = false;

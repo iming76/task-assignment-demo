@@ -9,12 +9,11 @@ The architectural rules that recur across [Architecture Overview](../architectur
 
 ## `shared-types` is the single source of truth
 
-`Task`, `Developer`, `Category`, `Skill`, and every request/response DTO will be
-defined once in `packages/shared-types` and imported by both apps when that
-package is implemented. Neither app may redeclare an interface that exists
-there, even when it would be more convenient in the moment — that's exactly the
-drift a monorepo is supposed to prevent. See
-[Data Model](../architecture/data-model.md).
+`Task`, `Developer`, `Category`, `Skill`, and every request/response DTO are
+defined once in `packages/shared-types` and imported by both apps. Neither app
+may redeclare an interface that exists there, even when it would be more
+convenient in the moment — that's exactly the drift a monorepo is supposed to
+prevent. See [Data Model](../architecture/data-model.md).
 
 ## Business rules are enforced server-side, never trusted from the frontend
 

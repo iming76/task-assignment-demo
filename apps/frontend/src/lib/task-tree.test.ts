@@ -12,6 +12,8 @@ function makeTask(overrides: Partial<Task> & { id: string }): Task {
     assigneeId: null,
     parentTaskId: null,
     requiredSkillIds: [],
+    createdAt: "2024-01-01T00:00:00.000Z",
+    updatedAt: "2024-01-01T00:00:00.000Z",
     ...overrides,
   };
 }

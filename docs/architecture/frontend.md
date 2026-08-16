@@ -5,51 +5,49 @@ sidebar_position: 3
 
 # Frontend Architecture
 
-This page describes the target design of the planned React + TypeScript
-application in `apps/frontend`. The application has not been scaffolded yet;
-the implementation sequence is defined in
-[Task Tree UI](../tasks/05c-add-task-tree-ui.md).
+This page describes the implemented React + TypeScript application in
+`apps/frontend`. See [Task Tree UI](../tasks/05c-add-task-tree-ui.md),
+[Resource Management UI](../tasks/05d-add-resource-management-ui.md), and
+[Agent Planning UI](../tasks/06b-add-agent-planning-ui.md) for the sequence it
+was built in.
 
 ## Stack
 
-- **Framework:** React with TypeScript
+- **Framework:** React 19 with TypeScript
 - **Build tool:** Vite
 - **Routing:** React Router
 - **Styling:** Tailwind CSS
 - **Server state:** TanStack Query
-- **Client state:** Zustand
-- **Shared components:** `packages/ui`
+- **Shared components:** `packages/ui` (shadcn/ui primitives)
 - **API and domain types:** `packages/shared-types`
+
+There is no separate client-side state library (e.g. Zustand/Redux). All
+server data lives in TanStack Query; the small amount of remaining UI-only
+state (open dialogs, form drafts, pagination) is local `useState` in the
+owning component.
 
 ## Layout
 
-The frontend should keep transport, domain-derived state, and presentation
-separate:
-
 ```text
 apps/frontend/src/
-├── components/          # App-wide UI such as Navbar and task components
-├── config/              # Navigation metadata and application constants
-├── hooks/               # Typed TanStack Query hooks and reusable React hooks
-├── pages/               # Route-level task list and creation views
-├── providers/           # QueryClientProvider and future app-wide providers
-├── services/            # Typed HTTP client, endpoint calls, and error mapping
-├── stores/              # Zustand stores for shared client-only state
-├── utils/               # Pure helpers such as tree and eligibility derivation
-├── App.tsx              # Application shell and routing
-├── main.tsx             # Browser entrypoint
-└── index.css            # Tailwind import and global styles
+├── api/                  # Typed HTTP client, endpoint calls, and error mapping
+├── components/           # App-wide UI: Navbar, dialogs, task tree, agent flow
+│   ├── developers/
+│   ├── skills/
+│   └── tasks/
+├── config/               # Navigation metadata and application constants
+├── hooks/                # Typed TanStack Query hooks, one module per resource
+├── lib/                  # Pure helpers: task-tree derivation, lookups, error messages
+├── pages/                # Route-level views
+├── providers/            # QueryClientProvider
+├── App.tsx               # Application shell and routing
+├── main.tsx              # Browser entrypoint
+└── index.css             # Tailwind import and global styles
 ```
 
-The exact filenames may evolve during implementation, but these boundaries
-should remain. Code shared with another application belongs in a workspace
-package rather than a frontend feature directory.
-
-A generic `context/` directory is not part of the initial layout. TanStack
-Query is configured through `providers/`, and Zustand stores do not require a
-React Context provider. Add a context only when a concrete dependency needs to
-be scoped to a React subtree. Likewise, do not create an empty `stores/` or
-`utils/` directory before the first implementation belongs there.
+Code shared with another application belongs in a workspace package
+(`packages/ui`, `packages/shared-types`) rather than a frontend feature
+directory.
 
 Navigation is split by responsibility:
 
@@ -58,71 +56,30 @@ Navigation is split by responsibility:
   interactions; and
 - `pages/` contains the views targeted by those routes.
 
-Navigation configuration contains static metadata, not fetched permissions or
-mutable selection state. The router remains the source of truth for the active
-route, so the selected menu item is not duplicated in Zustand.
-
 ## Routing
 
-The initial route table lives in `App.tsx`. `main.tsx` installs
-`BrowserRouter`, while route-level components live in `pages/`. The application
-uses these routes:
+`main.tsx` installs `BrowserRouter` and mounts `App` once at the browser
+entrypoint. `App.tsx` owns the route-to-page mapping:
 
-| Path          | Page             | Responsibility                                                |
-| ------------- | ---------------- | ------------------------------------------------------------- |
-| `/`           | `DashboardPage`  | Show the task list and actionable setup guidance              |
-| `/developer`  | `DevelopersPage` | Create, read, update, and delete developers                   |
-| `/skill`      | `SkillsPage`     | Create, read, and delete skills                               |
-| `/task`       | `TasksPage`      | Create, read, update, and delete tasks, including nested ones |
-| `/agent-task` | `AgentTaskPage`  | Generate and review an AI-assisted task and assignment plan   |
+| Path         | Page             | Responsibility                                                     |
+| ------------ | ---------------- | ------------------------------------------------------------------ |
+| `/`          | `DashboardPage`  | Show a summary and the latest tasks with actionable setup guidance |
+| `/developer` | `DevelopersPage` | Create, read, update, and delete developers                        |
+| `/skill`     | `SkillsPage`     | Create, read, and delete skills                                    |
+| `/task`      | `TasksPage`      | Create, read, update, and delete tasks, including nested ones      |
+| `*`          | `NotFoundPage`   | Fallback for unmatched routes                                      |
 
-`main.tsx` mounts the router once at the browser entrypoint:
+Agent-assisted task creation is not a separate route. `TasksPage` opens the
+`AgentTaskModal` (backed by `AgentTaskFlow`) as a dialog over the task list,
+alongside the plain `AddTaskDialog` for manual creation — both reuse the same
+tree and query hooks that render `/task`.
 
-```tsx
-import { BrowserRouter } from "react-router-dom";
-import { createRoot } from "react-dom/client";
+Creation forms live inside their resource pages as dialogs; there is no
+separate `/tasks/new` route.
 
-import { App } from "./App";
-
-createRoot(document.getElementById("root")!).render(
-  <BrowserRouter>
-    <App />
-  </BrowserRouter>,
-);
-```
-
-`App.tsx` owns the route-to-page mapping:
-
-```tsx
-import { Route, Routes } from "react-router-dom";
-
-import { AgentTaskPage } from "./pages/AgentTaskPage";
-import { DashboardPage } from "./pages/DashboardPage";
-import { DevelopersPage } from "./pages/DevelopersPage";
-import { SkillsPage } from "./pages/SkillsPage";
-import { TasksPage } from "./pages/TasksPage";
-
-export function App() {
-  return (
-    <Routes>
-      <Route path="/" element={<DashboardPage />} />
-      <Route path="/developer" element={<DevelopersPage />} />
-      <Route path="/skill" element={<SkillsPage />} />
-      <Route path="/task" element={<TasksPage />} />
-      <Route path="/agent-task" element={<AgentTaskPage />} />
-    </Routes>
-  );
-}
-```
-
-Creation forms are part of their resource pages, so the initial design does not
-add a separate `/tasks/new` route. Add a dedicated creation route later only if
-the form needs a shareable URL or an independent page lifecycle.
-
-The dashboard and task page may reuse the same task-query hook and task-list
-components, but they have different purposes. The dashboard is the landing
-overview; `/task` is the complete task-management workspace. Reuse does not
-mean copying task data into another client-side store.
+The dashboard and task page reuse the same task-query hook and task-list
+rendering, but they have different purposes: the dashboard is the landing
+overview, while `/task` is the complete task-management workspace.
 
 Dashboard setup guidance is driven by query results:
 
@@ -135,31 +92,33 @@ Dashboard setup guidance is driven by query results:
 
 The resource pages expose only their documented operations. In particular,
 `/skill` lets the user select a category and enter the required agent-facing
-description when creating a skill, but does not provide skill editing even if a
-broader backend contract supports it. Developer deletion is unavailable when
-the developer is assigned to a task. Skill deletion is unavailable when the
-skill belongs to a developer or is required by a task. These UI restrictions
-explain likely conflicts, but the backend remains authoritative and must
-enforce the same reference rules.
+description when creating a skill, but does not provide skill editing even if
+the backend contract supports it. Developer deletion is unavailable when the
+developer is assigned to a task. Skill deletion is unavailable when the skill
+belongs to a developer or is required by a task. These UI restrictions explain
+likely conflicts, but the backend remains authoritative and enforces the same
+reference rules.
 
 ## Agent-Assisted Task Planning
 
-`/agent-task` accepts a bounded natural-language conversation and calls the
-single backend orchestration endpoint. If essential details are missing, the
-page displays the agent's clarification question, retains the conversation in
+`AgentTaskModal` accepts a bounded natural-language conversation and calls the
+single backend orchestration endpoint (`POST /agent-task`) through
+`useOrchestrateAgentTask`. If essential details are missing, the modal
+displays the agent's clarification question, retains the conversation in
 local state, and submits the user's follow-up with the prior turns.
 
 When the request is sufficiently clear, the backend agent first loads the
 complete canonical skill list with current names and descriptions. The
-backend—not the browser or model—revalidates selected IDs, ranks fully qualified
-developers by active workload, and creates the complete recursive tree in one
-transaction. The response contains persisted flat `Task` records, which retain
-`parentTaskId` and `depth` for hierarchical display.
+backend — not the browser or model — revalidates selected IDs, ranks fully
+qualified developers by active workload, and creates the complete recursive
+tree in one transaction. The response contains persisted flat `Task` records,
+which retain `parentTaskId` and `depth` for hierarchical display.
 
-The page treats missing staffing as a successful outcome. Each task without a
+The modal treats missing staffing as a successful outcome. Each task without a
 qualified developer remains visibly unassigned, and a structured warning names
-the required role and skill IDs, such as `AI Engineer`. The page has no draft
-editor or separate apply/discard request.
+the required role and skill IDs. There is no draft editor or separate
+apply/discard step: a request either fails validation (nothing is created) or
+succeeds and the created tree is shown immediately.
 
 Agent orchestration stays in the backend behind the shared discriminated API
 contract. The frontend never sends provider credentials, calls a provider
@@ -167,23 +126,21 @@ directly, chooses assignments, or treats generated identifiers as trusted.
 
 ## Boundaries
 
-- `packages/shared-types` owns `Task`, `Developer`, `Category`, `Skill`, and all API DTOs.
-  The frontend imports those definitions and only declares UI-specific types
-  locally.
-- Services own base-URL configuration, JSON parsing, endpoint calls, and
+- `packages/shared-types` owns `Task`, `Developer`, `Category`, `Skill`, and
+  all API DTOs. The frontend imports those definitions and only declares
+  UI-specific types locally.
+- `api/` owns base-URL configuration, JSON parsing, endpoint calls, and
   conversion of the backend error envelope into user-safe errors. Components
   do not call `fetch` directly.
 - TanStack Query owns remote data, request lifecycle state, caching, and cache
   invalidation after mutations.
-- Zustand owns only shared client-side state, such as UI preferences or a
-  multi-step draft that must survive navigation.
-- Hooks own TanStack Query query and mutation definitions. Hooks should be
-  domain-specific, such as `useTasks` or `useCreateTask`; a generic `useFetch`
-  would duplicate behavior already provided by TanStack Query.
-- Utilities own pure derivations such as the task tree and eligible-assignee
-  list. They do not fetch data or mutate stores.
-- Configuration modules own static, environment-independent application
-  metadata. They do not become a catch-all for mutable state or business rules.
+- `hooks/` own TanStack Query query and mutation definitions, one module per
+  resource (`useTasks`, `useCreateTask`, and so on); a generic `useFetch` would
+  duplicate behavior already provided by TanStack Query.
+- `lib/` owns pure derivations such as the task tree (`task-tree.ts`) and
+  display lookups (`lookup.ts`). It does not fetch data.
+- `config/` owns static, environment-independent application metadata (route
+  labels). It does not become a catch-all for mutable state or business rules.
 - Components own rendering and transient interaction state. They do not
   reproduce backend validation as an authority.
 - `packages/ui` contains generic presentation primitives; task-specific
@@ -193,46 +150,47 @@ directly, chooses assignments, or treats generated identifiers as trusted.
 
 Each value has one owner:
 
-| State                                                 | Owner             |
-| ----------------------------------------------------- | ----------------- |
-| Tasks, developers, categories, skills, and API state  | TanStack Query    |
-| Mutation progress and server responses                | TanStack Query    |
-| Input values used by one mounted form or component    | Local React state |
-| Shared client-only preferences and cross-route drafts | Zustand           |
-| Route and shareable filter state                      | The URL           |
+| State                                                | Owner             |
+| ---------------------------------------------------- | ----------------- |
+| Tasks, developers, categories, skills, and API state | TanStack Query    |
+| Mutation progress and server responses               | TanStack Query    |
+| Dialog open/closed, form drafts, pagination          | Local React state |
+| Route state                                          | The URL           |
 
-API entities must not be copied into Zustand. Keeping server data in TanStack
-Query prevents two caches from drifting and makes invalidation after a mutation
-predictable. A `stores/` directory is created only when the application has
-real cross-component client state; Zustand does not justify an empty store.
+API entities are never copied into a separate client-side store. Keeping
+server data in TanStack Query prevents two caches from drifting and makes
+invalidation after a mutation predictable.
 
 ## Data Flow
 
-1. A typed query hook calls a service for tasks, developers, categories, or skills.
-2. TanStack Query caches the returned DTOs imported from
-   `@repo/shared-types` and exposes request state to the page.
-3. Task feature code derives roots and child collections from the cached task
-   list using `parentTaskId`.
-4. Recursive task components render the tree at arbitrary depth.
+1. A typed query hook calls `api/` for tasks, developers, categories, or
+   skills.
+2. TanStack Query caches the returned DTOs imported from `@repo/shared-types`
+   and exposes request state to the page.
+3. Task feature code (`lib/task-tree.ts`) derives roots and child collections
+   from the cached flat task list using `parentTaskId`.
+4. `TaskTreeNode` renders the tree recursively at arbitrary depth.
 5. A form or control invokes a TanStack Query mutation that submits a typed
    create or patch request.
-6. After success, the mutation updates or invalidates the relevant query;
-   after failure, the backend error is shown beside the affected interaction.
+6. After success, the mutation invalidates the relevant query; after failure,
+   the backend error is shown beside the affected interaction.
 
-Server responses remain the source of truth after every mutation. Optimistic UI
-must not leave an assignment or status visible as successful after the server
-rejects it.
+Server responses remain the source of truth after every mutation. Optimistic
+UI must not leave an assignment or status visible as successful after the
+server rejects it.
 
 ## Task Tree
 
-The API returns a flat task collection. The frontend derives a tree without
-changing the shared `Task` shape, for example by indexing tasks by
-`parentTaskId`. Rendering uses one recursive node component so root tasks and
+The API returns a flat task collection. `buildTaskTree` (`lib/task-tree.ts`)
+derives a tree without changing the shared `Task` shape, indexing tasks by
+`parentTaskId`. `TaskTreeNode` is one recursive component so root tasks and
 subtasks support the same creation, assignment, and status interactions.
 
-Tree construction must be defensive: an orphaned task remains visible, and a
-cycle in malformed data cannot cause infinite recursion. These safeguards are
-for rendering resilience, not substitutes for backend integrity checks.
+Tree construction is defensive: an orphaned task (a `parentTaskId` that does
+not resolve to a loaded task) remains visible in a dedicated section rather
+than silently disappearing, and construction cannot recurse infinitely on
+malformed data. These safeguards are for rendering resilience, not substitutes
+for backend integrity checks.
 
 ## Forms and Assignment
 
@@ -240,63 +198,66 @@ Task creation distinguishes between omitted and explicit skill selections:
 
 - omit `requiredSkillIds` to request automatic skill inference;
 - send `requiredSkillIds: []` when the user intentionally selects no required
-  skills; and
+  skills (achieved by leaving "Required assignee" off); and
 - set `parentTaskId` when creating beneath an existing task.
 
-The assignee control lists only developers whose `skillIds` contain every skill
-in the task's `requiredSkillIds`. This filtering guides the user, but the backend
-still enforces eligibility. Required skills remain editable so a failed or
-incorrect inference can be corrected.
+The assignee control (`TaskAssignmentFields`) lists only developers whose
+`skillIds` contain every skill in the task's `requiredSkillIds`, ordered by
+fewest incomplete tasks. This filtering guides the user, but the backend still
+enforces eligibility. Required skills remain editable so a failed or incorrect
+inference can be corrected.
 
 ## Status and Error Handling
 
-The UI submits status changes directly to the API and explains domain errors in
-the context of the attempted action. The shared and API values remain `TODO`
-and `DONE`; the presentation layer maps them to the user-facing labels “To-do”
-and “Done” without changing the transport shape. In particular:
+The UI submits status changes directly to the API and explains domain errors
+in the context of the attempted action. The shared and API values remain
+`TODO` and `DONE`; the presentation layer maps them to the user-facing labels
+without changing the transport shape. In particular:
 
 - `SKILL_MISMATCH` prompts the user to choose an eligible developer or correct
   the task's required skills;
-- `SUBTASKS_INCOMPLETE` directs completion from leaves upward; and
-- `COMPLETED_ANCESTOR` directs reopening from the root downward.
-- `IN_USE` explains which references must be removed before a developer, skill,
-  or task can be deleted.
+- `SUBTASKS_INCOMPLETE` directs completion from leaves upward;
+- `COMPLETED_ANCESTOR` directs reopening from the root downward; and
+- `IN_USE` explains which references must be removed before a developer,
+  skill, or task can be deleted.
 
-Loading, empty, pending, success, and failure states are explicit. Unexpected
-errors use a safe fallback message while preserving diagnostic detail for
-development logs.
+Loading, empty, pending, success, and failure states are explicit
+(`RouteState.tsx`). Unexpected errors use a safe fallback message
+(`error-message.ts`) while preserving diagnostic detail for development logs.
 
 ## Destructive Actions
 
-Every delete action requires an explicit confirmation modal before the frontend
-sends the request. The modal identifies the resource being deleted, provides
-cancel and confirm actions, and disables repeated submission while the request
-is pending. Canceling closes the modal without changing data.
+Every delete action requires an explicit confirmation modal
+(`ConfirmDeleteDialog`) before the frontend sends the request. The modal
+identifies the resource being deleted, provides cancel and confirm actions,
+and disables repeated submission while the request is pending. Canceling
+closes the modal without changing data.
 
 A successful deletion invalidates the relevant TanStack Query cache. If the
-server rejects deletion, the resource remains visible and the modal or
-associated page shows the returned user-safe error. The frontend must not rely
-only on locally cached task, developer, or skill relationships to decide that a
-deletion is safe.
+server rejects deletion (`IN_USE`), the resource remains visible and the modal
+shows the returned user-safe error. The frontend does not rely only on locally
+cached task, developer, or skill relationships to decide that a deletion is
+safe.
 
 ## Runtime Configuration
 
 The backend base URL is supplied through `VITE_API_BASE_URL` and read only in
-the service layer. Deployments must set this variable to the externally
-reachable API origin before running the Vite production build. As with every
-`VITE_`-prefixed variable, its value is embedded in the browser bundle and must
-never contain a secret. The production build emits static `dist/` assets
-suitable for serving with nginx.
+`api/`. Deployments must set this variable to the externally reachable API
+origin before running the Vite production build. As with every
+`VITE_`-prefixed variable, its value is embedded in the browser bundle and
+must never contain a secret. The production build emits static `dist/` assets
+suitable for serving with nginx (see `apps/frontend/Dockerfile`).
 
 ## Testing
 
-Component and feature tests use React Testing Library with mocked HTTP
-responses. Coverage focuses on user-visible behavior: loading and error states,
-skill-filtered assignment, omitted versus empty skill selections, recursive
-creation, a tree at least three levels deep, and actionable messages for domain
-conflicts.
+Component and page tests use Vitest and React Testing Library with mocked HTTP
+responses. Coverage focuses on user-visible behavior: loading and error
+states, skill-filtered assignment, omitted versus empty skill selections,
+recursive creation, a tree at least three levels deep, orphaned-task recovery,
+and actionable messages for domain conflicts. `packages/ui` additionally runs
+Storybook interaction tests for shared primitives.
 
 See [Backend Architecture](./backend.md) for server-side enforcement,
 [Data Model](./data-model.md) for shared domain shapes, and
-[Backend API Contract](../contract/backend-api.md) for the endpoints consumed by
-the frontend.
+[Backend API Contract](../contract/backend-api.md) for the endpoints consumed
+by the frontend.

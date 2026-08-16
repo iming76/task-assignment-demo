@@ -35,6 +35,8 @@ export const validRootTask: Task = {
   assigneeId: null,
   parentTaskId: null,
   requiredSkillIds: [validSkill.id],
+  createdAt: "2024-01-01T00:00:00.000Z",
+  updatedAt: "2024-01-01T00:00:00.000Z",
 };
 
 export const validSubtask: Task = {
@@ -46,4 +48,6 @@ export const validSubtask: Task = {
   assigneeId: validDeveloper.id,
   parentTaskId: validRootTask.id,
   requiredSkillIds: [],
+  createdAt: "2024-01-01T00:00:00.000Z",
+  updatedAt: "2024-01-01T00:00:00.000Z",
 };

@@ -6,13 +6,16 @@ sidebar_position: 1
 
 # Task Assignment
 
-This site documents the target application behavior. The repository is still in the planning and scaffolding phase; unchecked items under [Tasks](./tasks/overview.md) are not implemented yet.
+This site documents the delivered application behavior. [Tasks](./tasks/overview.md) records the numbered OpenSpec changes the system was built from, in dependency order.
 
 Task Assignment routes work to the developer who can actually do it. Every task carries the skill(s) it requires, every developer carries the skill(s) they have, and the system won't let you assign one to the other unless they match — so "who should pick this up" stops being a manual judgment call and starts being something the app enforces.
 
 **Three things make it more than a basic task list:**
 
-- **Subtasks** — a task can be broken down into nested subtasks (to any depth), and a parent can't be closed out as "Done" until every subtask underneath it is. This mirrors how real work actually decomposes instead of forcing everything into a flat backlog.
+- **Subtasks** — a task can be broken down into nested subtasks up to three
+  levels deep (root, subtask, sub-subtask), and a parent can't be closed out
+  as "Done" until every subtask underneath it is. This mirrors how real work
+  actually decomposes instead of forcing everything into a flat backlog.
 - **LLM skill tagging** — writing a task title and description and manually
   picking its required skills is friction most people skip. When the request
   omits skills, the backend attempts to infer them from the task context before

@@ -8,10 +8,10 @@ sidebar_position: 1
 ## Repository Structure
 
 ```text
-task-assignment/
+task-assignment-demo/
 ├── docker-compose.yml
 ├── apps/
-│   ├── doc/
+│   ├── doc/                    # Docusaurus site publishing docs/
 │   ├── frontend/
 │   │   └── Dockerfile
 │   └── backend/
@@ -22,41 +22,44 @@ task-assignment/
     ├── shared-types/           # Task, Developer, Category, Skill, and API DTOs
     ├── eslint-config/
     ├── typescript-config/
-    └── ui/
+    └── ui/                     # Shared UI components and Storybook stories
 ```
 
-**Why this target structure:**
+**Why this structure:**
 
-- `apps/frontend` and the planned `apps/backend` are independently buildable and runnable.
-- The planned `packages/shared-types` is the main payoff of the monorepo: it will provide one source of truth for domain types and API DTOs consumed by both apps.
-- `turbo.json` already defines `build`, `lint`, `check-types`, and `dev`. Its `^` dependencies will order shared-package builds before consuming apps once their workspace dependencies exist.
+- `apps/frontend` and `apps/backend` are independently buildable and runnable.
+- `packages/shared-types` is the main payoff of the monorepo: both apps import
+  the same `Task`/`Developer`/`Category`/`Skill`/DTO definitions, so the
+  frontend and backend can never drift into incompatible request/response
+  shapes.
+- `turbo.json` defines `build`, `lint`, `check-types`, `test`, and `dev`. Its
+  `^` dependencies order `packages/shared-types` and `packages/ui` builds
+  before the apps that consume them.
 
 ## Tech Stack
 
-| Layer            | Choice                                                                                 |
-| ---------------- | -------------------------------------------------------------------------------------- |
-| Tooling          | Turborepo + pnpm workspaces                                                            |
-| Shared types     | Planned `packages/shared-types`, imported by both apps                                 |
-| Frontend         | React + TypeScript (Vite), `apps/frontend`                                             |
-| doc              | Docusaurus, `apps/doc`, publishing the root `docs/` tree                               |
-| Backend          | Planned Node.js + TypeScript (Fastify)                                                 |
-| ORM              | Planned Prisma                                                                         |
-| Database         | Planned PostgreSQL                                                                     |
-| LLM              | Planned Vercel AI SDK behind a provider-agnostic service                               |
-| Containerization | Planned Docker + Docker Compose, with per-app images built from Turborepo prune output |
-| Testing          | Planned Vitest/Supertest (backend) and React Testing Library (frontend)                |
+| Layer            | Choice                                                                         |
+| ---------------- | ------------------------------------------------------------------------------ |
+| Tooling          | Turborepo + pnpm workspaces                                                    |
+| Shared types     | `packages/shared-types`, imported by both apps                                 |
+| Frontend         | React 19 + TypeScript (Vite), TanStack Query, Tailwind CSS, shadcn/ui          |
+| Docs             | Docusaurus, `apps/doc`, publishing the root `docs/` tree                       |
+| Backend          | Node.js + TypeScript (Fastify)                                                 |
+| ORM              | Prisma                                                                         |
+| Database         | PostgreSQL 16                                                                  |
+| LLM              | Vercel AI SDK with an OpenAI provider, behind an injectable provider port      |
+| Containerization | Docker + Docker Compose, with per-app images built from Turborepo prune output |
+| Testing          | Vitest/Supertest (backend) and Vitest/React Testing Library (frontend)         |
 
 ## Local Development Ports
 
-| Service  | Port   | Local URL               |
-| -------- | ------ | ----------------------- |
-| Frontend | `3000` | `http://localhost:3000` |
-| Backend  | `3100` | `http://localhost:3100` |
-| Docs     | `3200` | `http://localhost:3200` |
-
-The docs workspace already uses its assigned port. The frontend and backend
-workspaces MUST use the ports above when their planned application shells are
-implemented.
+| Service    | Port   | Local URL               |
+| ---------- | ------ | ----------------------- |
+| Frontend   | `3000` | `http://localhost:3000` |
+| Backend    | `3100` | `http://localhost:3100` |
+| Docs       | `3200` | `http://localhost:3200` |
+| Storybook  | `6006` | `http://localhost:6006` |
+| PostgreSQL | `5434` | `localhost:5434`        |
 
 ## Turborepo Pipeline (`turbo.json`)
 
@@ -64,17 +67,39 @@ implemented.
 {
   "$schema": "https://turborepo.dev/schema.json",
   "ui": "tui",
+  "globalEnv": [
+    "NODE_ENV",
+    "DATABASE_URL",
+    "PORT",
+    "FRONTEND_URL",
+    "VITE_API_BASE_URL",
+    "AI_PROVIDER",
+    "OPENAI_API_KEY",
+    "OPENAI_MODEL",
+    "AGENT_PLANNING_TIMEOUT_MS",
+    "SKILL_INFERENCE_TIMEOUT_MS",
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": ["dist/**", "build/**"],
+      "outputs": [
+        ".next/**",
+        "!.next/cache/**",
+        "!.next/dev/**",
+        "build/**",
+        "dist/**",
+      ],
     },
     "lint": {
       "dependsOn": ["^lint"],
     },
     "check-types": {
-      "dependsOn": ["^check-types"],
+      "dependsOn": ["^check-types", "^build"],
+    },
+    "check-architecture": {},
+    "test": {
+      "dependsOn": ["^build"],
     },
     "dev": {
       "cache": false,
@@ -84,8 +109,10 @@ implemented.
 }
 ```
 
-- `^build` will ensure `packages/shared-types` builds before the frontend and backend after those packages declare the dependency.
-- `lint` and `check-types` similarly depend on `^lint`/`^check-types` in upstream packages.
+- `^build` ensures `packages/shared-types` and `packages/ui` build before the
+  frontend and backend that depend on them.
+- `lint`, `check-types`, and `test` similarly depend on their upstream
+  package equivalents so type errors and build output stay current.
 - `dev` is uncached/persistent since it's a long-running watch process.
 
 See [Data Model](./data-model.md) for the

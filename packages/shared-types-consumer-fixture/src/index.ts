@@ -35,6 +35,8 @@ const task: Task = {
   assigneeId: developer.id,
   parentTaskId: null,
   requiredSkillIds: [skill.id],
+  createdAt: "2024-01-01T00:00:00.000Z",
+  updatedAt: "2024-01-01T00:00:00.000Z",
 };
 
 export { category, developer, skill, task };

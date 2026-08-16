@@ -7,20 +7,29 @@ sidebar_position: 2
 
 ## Formatting and linting
 
-[Biome](https://biomejs.dev) (`biome.json`) is the formatter and staged-file checker for TypeScript, JavaScript, JSON, and CSS: 2-space indentation, double-quote strings, the `recommended` rule preset, and `organizeImports` on. ESLint remains the package-level linter run by each application's `lint` script. Prettier is scoped narrowly to Markdown — the root `format` script runs `prettier --write "**/*.md"`; TypeScript formatting goes through Biome instead.
+Prettier (default configuration) formats TypeScript, JSX, and Markdown: the
+root `format` script runs
+`prettier --write "**/*.{ts,tsx,md}"`. ESLint is the package-level linter run
+by each application's `lint` script (`eslint . --max-warnings 0`), using the
+shared `@repo/eslint-config` presets.
 
-`lint-staged` runs `biome check --write --no-errors-on-unmatched` on staged `.{js,jsx,ts,tsx,json,jsonc,css}` files via a Husky pre-commit hook. This fast staged check complements the package-level ESLint commands; both must pass for changed application code.
+`lint-staged` (configured in the root `package.json`) runs on every Husky
+pre-commit hook: staged files under `packages/ui/**/*.{js,jsx,ts,tsx}` are
+fixed with `eslint --fix`, and every staged `.{js,jsx,ts,tsx,json,md,mdx,yml,yaml,css}`
+file is formatted with `prettier --write`. This fast staged check complements
+the package-level `lint`/`check-types` commands; both must pass for changed
+application code.
 
 ## TypeScript
 
-Strict mode throughout. When the planned `packages/shared-types` lands, types
-for `Task`, `Developer`, `Category`, `Skill`, and API DTOs must live there once
-and be imported, never redeclared — see
+Strict mode throughout. Types for `Task`, `Developer`, `Category`, `Skill`,
+and API DTOs live once in `packages/shared-types` and are imported, never
+redeclared — see
 [Architecture](./architecture.md#shared-types-is-the-single-source-of-truth).
 
 ## Monorepo tooling
 
-pnpm workspaces (`pnpm-workspace.yaml`) plus Turborepo (`turbo.json`) handle task orchestration. `build`, `dev`, `lint`, and `check-types` run through `turbo run <task>` from the root `package.json`. Once apps depend on the planned shared-types package, the existing `^` task dependencies will run that package first.
+pnpm workspaces (`pnpm-workspace.yaml`) plus Turborepo (`turbo.json`) handle task orchestration. `build`, `dev`, `test`, `lint`, and `check-types` run through `turbo run <task>` from the root `package.json`. Apps that depend on `packages/shared-types` and `packages/ui` get those built first via `turbo.json`'s `^` task dependencies.
 
 ## Commit messages
 

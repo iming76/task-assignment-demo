@@ -5,14 +5,13 @@ sidebar_position: 1
 
 # Backend API Contract
 
-The human-readable target request/response contract for the planned
-`apps/backend`, elaborating the plans in
+The human-readable request/response contract for `apps/backend`, elaborating
+the plans in
 [Backend API Foundation](../tasks/03b-add-backend-api-foundation.md),
 [Task Tree UI](../tasks/05c-add-task-tree-ui.md), and the
 [shared API contracts](../constitution/architecture.md#shared-api-contracts)
-rule. This page records the proposed API design. Types will mirror
-[Data Model](../architecture/data-model.md) and be shared via the planned
-`packages/shared-types` — nothing here should be redefined independently in
+rule. Types mirror [Data Model](../architecture/data-model.md) and are shared
+via `packages/shared-types` — nothing here is redefined independently in
 either app.
 
 ## Conventions
@@ -48,7 +47,7 @@ All non-2xx responses use one consistent shape:
 
 ## Schemas
 
-`Developer`, `Category`, `Skill`, and `Task` will be defined once in `packages/shared-types`
+`Developer`, `Category`, `Skill`, and `Task` are defined once in `packages/shared-types`
 — see [Data Model](../architecture/data-model.md) for the canonical interfaces and
 underlying DB schema. Endpoints below return these shapes directly, with
 join tables (`developer_skills`, `task_skills`) flattened into `skillIds` /
@@ -117,12 +116,14 @@ Create a task.
 - `depth` is server-managed and must not be supplied by clients.
 - New tasks start with `status: "TODO"` and `assigneeId: null`. Root tasks have
   `depth: 1`; subtasks receive their parent's depth plus one.
+- Nesting is bounded by `MAX_TASK_DEPTH = 3` (from `packages/shared-types`):
+  a task whose computed depth would exceed `3` is rejected.
 
 **Responses**
 
 - `201 Created` — returns the created `Task`.
-- `400 VALIDATION_ERROR` — missing/invalid `title` or `description`, or malformed
-  IDs.
+- `400 VALIDATION_ERROR` — missing/invalid `title` or `description`, malformed
+  IDs, or a `parentTaskId` whose depth is already at `MAX_TASK_DEPTH`.
 - `404 NOT_FOUND` — a supplied `parentTaskId` or `requiredSkillIds` entry does
   not resolve to an existing resource.
 - `409 COMPLETED_ANCESTOR` — `parentTaskId` points to a `"DONE"` task; reopen

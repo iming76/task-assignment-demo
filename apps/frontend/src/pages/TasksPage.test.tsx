@@ -134,7 +134,10 @@ describe("TasksPage", () => {
     const user = userEvent.setup();
     mockApi({
       "GET /tasks": { status: 200, body: [] },
-      ...noDevelopers,
+      "GET /developers": {
+        status: 200,
+        body: [{ id: "d1", name: "Frontend Dev", skillIds: [] }],
+      },
       ...noSkills,
       "POST /tasks": { status: 201, body: root },
     });
@@ -142,6 +145,7 @@ describe("TasksPage", () => {
     renderWithQueryClient(<TasksPage />);
     await screen.findByText("No tasks yet");
 
+    await user.click(screen.getByRole("button", { name: "Add task" }));
     await user.type(screen.getByLabelText("Title"), "Root");
     await user.type(screen.getByLabelText("Description"), "Root task.");
     await user.click(screen.getByRole("button", { name: "Add task" }));
@@ -180,6 +184,7 @@ describe("TasksPage", () => {
     renderWithQueryClient(<TasksPage />);
     await screen.findByText("No tasks yet");
 
+    await user.click(screen.getByRole("button", { name: "Add task" }));
     const addButton = screen.getByRole("button", { name: "Add task" });
     expect(screen.queryByLabelText("Category")).not.toBeInTheDocument();
 
@@ -272,6 +277,7 @@ describe("TasksPage", () => {
     renderWithQueryClient(<TasksPage />);
     await screen.findByText("Busy task");
 
+    await user.click(screen.getByRole("button", { name: "Add task" }));
     expect(
       screen.queryByRole("checkbox", { name: "React" }),
     ).not.toBeInTheDocument();

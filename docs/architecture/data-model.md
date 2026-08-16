@@ -28,11 +28,13 @@ TaskSkill (join table)
   task_id, skill_id   (required skills)
 ```
 
-These shapes will live as TypeScript interfaces in the planned `packages/shared-types`, e.g.:
+These shapes live as TypeScript interfaces in `packages/shared-types`, e.g.:
 
 ```ts
 // packages/shared-types/src/task.ts
 export type TaskStatus = "TODO" | "DONE";
+
+export const MAX_TASK_DEPTH = 3;
 
 export interface Category {
   id: string;
@@ -55,10 +57,15 @@ export interface Task {
   assigneeId: string | null;
   parentTaskId: string | null;
   requiredSkillIds: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 ```
 
-Once implemented, both the backend (as the return/DTO shape) and frontend (as the fetched data shape) must import this instead of duplicating interface definitions. Additional statuses require an explicit contract and shared-type change; the union must not include a catch-all `string`.
+Both the backend (as the return/DTO shape) and frontend (as the fetched data
+shape) import this instead of duplicating interface definitions. Additional
+statuses require an explicit contract and shared-type change; the union must
+not include a catch-all `string`.
 
 ## Skill Taxonomy
 
@@ -99,11 +106,14 @@ it.
 
 ## Task Hierarchy
 
-Tasks form an arbitrary-depth hierarchy through the self-referencing
-`parentTaskId`. A one-based `depth` is persisted and included in the shared
-`Task` shape: roots default to `1`, and the backend stores a child's depth as
-its parent's depth plus one. Depth is informational and does not impose a
-maximum nesting tier.
+Tasks form a hierarchy through the self-referencing `parentTaskId`, bounded by
+`MAX_TASK_DEPTH = 3` (root, subtask, sub-subtask). A one-based `depth` is
+persisted and included in the shared `Task` shape: roots default to `1`, and
+the backend stores a child's depth as its parent's depth plus one. Creating a
+task whose computed depth would exceed `MAX_TASK_DEPTH` fails with
+`400 VALIDATION_ERROR`, enforced identically for both `POST /tasks` and the
+agent-generated tree in `POST /agent-task`. The frontend does not offer an
+"Add subtask" action on a third-level task, matching this limit.
 
 The relevant part of the Prisma model is:
 

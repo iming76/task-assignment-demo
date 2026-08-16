@@ -1,11 +1,20 @@
 import { Link } from "react-router-dom";
 
-import { Button, Card, CardContent, CardHeader, CardTitle } from "@repo/ui";
+import {
+  Badge,
+  Button,
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@repo/ui";
 
 import { ApiClientError } from "../api";
 import { ErrorState, LoadingState } from "../components/RouteState";
 import { useDevelopers } from "../hooks/developers";
 import { useTasks } from "../hooks/tasks";
+
+const LATEST_TASKS_LIMIT = 10;
 
 function errorMessage(error: unknown, fallback: string): string {
   return error instanceof ApiClientError ? error.message : fallback;
@@ -42,6 +51,12 @@ export function DashboardPage() {
   const developers = developersQuery.data ?? [];
   const hasNoTasks = tasks.length === 0;
   const hasNoDevelopers = developers.length === 0;
+  const latestTasks = [...tasks]
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+    .slice(0, LATEST_TASKS_LIMIT);
 
   return (
     <div className="flex flex-col gap-6">
@@ -75,6 +90,39 @@ export function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {hasNoTasks ? null : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Latest tasks</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-3">
+            {latestTasks.map((task) => (
+              <div
+                key={task.id}
+                className="flex items-center justify-between gap-3 border-b pb-3 last:border-b-0 last:pb-0"
+              >
+                <div className="flex flex-col">
+                  <Link
+                    to="/task"
+                    className="text-sm font-medium hover:underline"
+                  >
+                    {task.title}
+                  </Link>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date(task.createdAt).toLocaleString()}
+                  </span>
+                </div>
+                <Badge
+                  variant={task.status === "DONE" ? "default" : "secondary"}
+                >
+                  {task.status}
+                </Badge>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
     </div>
   );
 }

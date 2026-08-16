@@ -202,7 +202,7 @@ export function SkillsPage() {
             ({ category, skills: categorySkills }) => (
               <div
                 key={category?.id ?? "uncategorized"}
-                className="flex flex-col gap-3"
+                className="flex flex-col gap-3 mb-6"
               >
                 <h2 className="text-sm font-semibold text-muted-foreground">
                   {category?.name ?? "Uncategorized"}
@@ -212,7 +212,9 @@ export function SkillsPage() {
                     <Card key={skill.id}>
                       <CardContent className="flex flex-col gap-2">
                         <div className="flex items-center justify-between gap-3">
-                          <CardTitle>{skill.name}</CardTitle>
+                          <div>
+                            <CardTitle>{skill.name}</CardTitle>
+                          </div>
                           <div className="flex items-center gap-2">
                             {category ? (
                               <Badge variant="secondary">{category.name}</Badge>

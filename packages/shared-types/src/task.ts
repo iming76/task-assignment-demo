@@ -1,5 +1,7 @@
 export type TaskStatus = "TODO" | "DONE";
 
+export const MAX_TASK_DEPTH = 3;
+
 export interface Task {
   id: string;
   title: string;

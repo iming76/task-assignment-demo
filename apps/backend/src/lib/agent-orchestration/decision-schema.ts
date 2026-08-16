@@ -1,6 +1,10 @@
 import { z } from "zod";
+import { MAX_TASK_DEPTH } from "@repo/shared-types";
 
-export const DEFAULT_AGENT_PLAN_LIMITS = { maxDepth: 5, maxNodes: 200 };
+export const DEFAULT_AGENT_PLAN_LIMITS = {
+  maxDepth: MAX_TASK_DEPTH,
+  maxNodes: 200,
+};
 
 export interface PlannedTaskNode {
   title: string;

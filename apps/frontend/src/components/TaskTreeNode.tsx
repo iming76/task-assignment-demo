@@ -1,6 +1,11 @@
 import { type FormEvent, useState } from "react";
 
-import type { Developer, Skill, Task } from "@repo/shared-types";
+import {
+  MAX_TASK_DEPTH,
+  type Developer,
+  type Skill,
+  type Task,
+} from "@repo/shared-types";
 import {
   Badge,
   Button,
@@ -295,7 +300,7 @@ export function TaskTreeNodeView({
           </div>
         ) : null}
 
-        {isAddingChild ? (
+        {task.depth >= MAX_TASK_DEPTH ? null : isAddingChild ? (
           <form
             className="flex flex-col gap-3 border-l border-border pl-4"
             onSubmit={handleChildSubmit}

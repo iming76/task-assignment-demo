@@ -35,3 +35,4 @@ export type {
   TaskResponse,
   TaskStatus,
 } from "./task.js";
+export { MAX_TASK_DEPTH } from "./task.js";

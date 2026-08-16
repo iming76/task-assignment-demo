@@ -21,3 +21,12 @@ The API MUST reject assignment unless the selected developer covers every effect
 
 - **WHEN** a task write assigns or retains a developer missing at least one required skill
 - **THEN** the entire write is rejected with SKILL_MISMATCH
+
+### Requirement: Maximum task depth
+
+The API MUST limit task hierarchies to three one-based levels.
+
+#### Scenario: Fourth-level task submitted
+
+- **WHEN** a client creates a task beneath a third-level task
+- **THEN** the entire write is rejected with VALIDATION_ERROR and no task is created

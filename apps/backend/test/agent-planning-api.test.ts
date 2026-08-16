@@ -281,6 +281,36 @@ describe("agent orchestration api", () => {
     expect(await prisma.task.count()).toBe(0);
   });
 
+  it("rejects agent-created trees deeper than three levels", async () => {
+    const provider = new FakeAgentOrchestrationProvider(async () => ({
+      decision: {
+        action: "create_task_tree",
+        tasks: [
+          node({
+            subtasks: [
+              node({
+                subtasks: [node({ subtasks: [node({ title: "Too deep" })] })],
+              }),
+            ],
+          }),
+        ],
+      },
+      skillCatalogListed: true,
+    }));
+
+    const response = await buildTestApp({ provider }).inject({
+      method: "POST",
+      url: "/agent-task",
+      payload: { messages: [{ role: "user", content: "Build React." }] },
+    });
+
+    expect(response.statusCode).toBe(400);
+    expect((response.json() as ApiErrorResponse).error.code).toBe(
+      "VALIDATION_ERROR",
+    );
+    expect(await prisma.task.count()).toBe(0);
+  });
+
   it("rejects unknown skill ids and rolls back failed trees", async () => {
     const invalidProvider = new FakeAgentOrchestrationProvider(async () => ({
       decision: {

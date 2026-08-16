@@ -17,9 +17,14 @@ The frontend SHALL derive and render an arbitrary-depth hierarchy from the flat 
 
 ### Requirement: Guided task mutations
 
-The task UI SHALL support root/child creation, edits, eligible assignment, skill correction, and confirmed deletion through the typed API.
+The task UI SHALL support root/child creation up to three one-based levels, edits, eligible assignment, skill correction, and confirmed deletion through the typed API.
 
 #### Scenario: User creates a grandchild
 
 - **WHEN** the user submits the child form beneath a second-level task
 - **THEN** the request contains that task identifier as parentTaskId and the refreshed tree shows the new grandchild
+
+#### Scenario: User views a third-level task
+
+- **WHEN** the UI renders a task at depth `3`
+- **THEN** it does not offer an action to add a subtask beneath that task

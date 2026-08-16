@@ -237,6 +237,23 @@ describe("TasksPage", () => {
     );
   });
 
+  it("does not offer subtask creation beneath a third-level task", async () => {
+    mockApi({
+      "GET /tasks": { status: 200, body: [root, child, grandchild] },
+      ...noDevelopers,
+      ...noSkills,
+    });
+
+    renderWithQueryClient(<TasksPage />);
+    const grandchildCard = (await screen.findByText("Grandchild")).closest(
+      '[data-slot="card"]',
+    ) as HTMLElement;
+
+    expect(
+      within(grandchildCard).queryByRole("button", { name: "Add subtask" }),
+    ).not.toBeInTheDocument();
+  });
+
   it("only offers eligible developers as assignees and submits the assignment", async () => {
     const user = userEvent.setup();
     mockApi({

@@ -122,6 +122,34 @@ describe("task write api", () => {
       expect(child.depth).toBe(root.depth + 1);
     });
 
+    it("rejects creating a task deeper than three levels", async () => {
+      const app = buildTestApp();
+      await app.ready();
+
+      const create = async (title: string, parentTaskId?: string) =>
+        app.inject({
+          method: "POST",
+          url: "/tasks",
+          payload: {
+            title,
+            description: `${title} task.`,
+            ...(parentTaskId ? { parentTaskId } : {}),
+          },
+        });
+
+      const root = (await create("Root")).json() as Task;
+      const child = (await create("Child", root.id)).json() as Task;
+      const grandchild = (await create("Grandchild", child.id)).json() as Task;
+      const response = await create("Too deep", grandchild.id);
+
+      expect(response.statusCode).toBe(400);
+      expect((response.json() as ApiErrorResponse).error).toEqual({
+        code: "VALIDATION_ERROR",
+        message: "Tasks cannot be nested deeper than 3 levels",
+      });
+      expect(await prisma.task.count()).toBe(3);
+    });
+
     it("returns NOT_FOUND for an unknown parentTaskId", async () => {
       const app = buildTestApp();
       await app.ready();

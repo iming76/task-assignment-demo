@@ -1,10 +1,11 @@
-import type {
-  AgentTaskCreatedResponse,
-  AgentTaskRequest,
-  AgentTaskResponse,
-  AgentTaskStaffingGap,
-  Developer,
-  Task,
+import {
+  MAX_TASK_DEPTH,
+  type AgentTaskCreatedResponse,
+  type AgentTaskRequest,
+  type AgentTaskResponse,
+  type AgentTaskStaffingGap,
+  type Developer,
+  type Task,
 } from "@repo/shared-types";
 import {
   AgentUnavailableError,
@@ -105,6 +106,11 @@ export function createAgentTaskService(
     created: Task[],
     staffingGaps: AgentTaskStaffingGap[],
   ): Promise<void> => {
+    if (depth > MAX_TASK_DEPTH) {
+      throw new ValidationError(
+        `Tasks cannot be nested deeper than ${MAX_TASK_DEPTH} levels`,
+      );
+    }
     for (const node of nodes) {
       const requiredSkillIds = [...new Set(node.requiredSkillIds)];
       const assignee = selectAssignee(

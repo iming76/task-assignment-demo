@@ -1,10 +1,16 @@
-import type { CreateTaskInput, PatchTaskInput, Task } from "@repo/shared-types";
+import {
+  MAX_TASK_DEPTH,
+  type CreateTaskInput,
+  type PatchTaskInput,
+  type Task,
+} from "@repo/shared-types";
 import {
   CompletedAncestorError,
   InUseError,
   NotFoundError,
   SkillMismatchError,
   SubtasksIncompleteError,
+  ValidationError,
 } from "../errors/application-error.js";
 import type { DeveloperRepository } from "../lib/repositories/developer-repository.js";
 import type { SkillRepository } from "../lib/repositories/skill-repository.js";
@@ -69,6 +75,11 @@ export function createTaskService(
           );
         }
         depth = parent.depth + 1;
+        if (depth > MAX_TASK_DEPTH) {
+          throw new ValidationError(
+            `Tasks cannot be nested deeper than ${MAX_TASK_DEPTH} levels`,
+          );
+        }
 
         const ancestorIds = await repository.findAncestorIds(
           input.parentTaskId,

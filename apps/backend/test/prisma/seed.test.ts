@@ -1,7 +1,7 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "../../src/lib/prisma.js";
-import { applicationSeedIds } from "../../prisma/seed-ids.js";
-import { seedApplicationData } from "../../prisma/seed.js";
+import { testSeedIds } from "../fixtures/seed-ids.js";
+import { seedTestData } from "../fixtures/seed.js";
 import { testFixtureIds } from "../fixtures/fixture-ids.js";
 
 async function resetDatabase(): Promise<void> {
@@ -14,21 +14,31 @@ function allIds(ids: Record<string, Record<string, string>>): string[] {
   return Object.values(ids).flatMap((group) => Object.values(group));
 }
 
-describe("application seed / test fixture ID disjointness", () => {
-  it("shares no UUID between the application seed and test fixtures", () => {
-    const applicationIds = new Set(allIds(applicationSeedIds));
+describe("test seed / fixture ID disjointness", () => {
+  it("shares no UUID between the test seed and focused fixtures", () => {
+    const seedIds = new Set(allIds(testSeedIds));
     const fixtureIds = allIds(testFixtureIds);
 
     for (const id of fixtureIds) {
-      expect(applicationIds.has(id)).toBe(false);
+      expect(seedIds.has(id)).toBe(false);
     }
   });
 });
 
-describe("application seed", () => {
+describe("test data seed", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("refuses to run outside NODE_ENV=test", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+
+    await expect(seedTestData(prisma)).rejects.toThrow(/NODE_ENV=test/);
+  });
+
   it("creates the documented categories, skills, developers, and relationships", async () => {
     await resetDatabase();
-    await seedApplicationData(prisma);
+    await seedTestData(prisma);
 
     const [categories, skills, developers, developerSkills] = await Promise.all(
       [
@@ -63,20 +73,20 @@ describe("application seed", () => {
     };
 
     await expect(
-      skillNamesFor(applicationSeedIds.developers.adaLovelace),
+      skillNamesFor(testSeedIds.developers.adaLovelace),
     ).resolves.toEqual(["React", "TypeScript"]);
     await expect(
-      skillNamesFor(applicationSeedIds.developers.graceHopper),
+      skillNamesFor(testSeedIds.developers.graceHopper),
     ).resolves.toEqual(["Node.js", "PostgreSQL", "React", "TypeScript"]);
     await expect(
-      skillNamesFor(applicationSeedIds.developers.alanTuring),
+      skillNamesFor(testSeedIds.developers.alanTuring),
     ).resolves.toEqual(["Node.js"]);
   });
 
   it("is idempotent: running twice leaves the same records and relationships", async () => {
     await resetDatabase();
-    await seedApplicationData(prisma);
-    await seedApplicationData(prisma);
+    await seedTestData(prisma);
+    await seedTestData(prisma);
 
     const [categoryCount, skillCount, developerCount, developerSkillCount] =
       await Promise.all([
@@ -93,10 +103,7 @@ describe("application seed", () => {
 
     const categories = await prisma.category.findMany();
     expect(categories.map((c) => c.id).sort()).toEqual(
-      [
-        applicationSeedIds.categories.frontend,
-        applicationSeedIds.categories.backend,
-      ].sort(),
+      [testSeedIds.categories.frontend, testSeedIds.categories.backend].sort(),
     );
   });
 });

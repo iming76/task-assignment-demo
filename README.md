@@ -67,12 +67,11 @@ Start PostgreSQL with Docker Compose:
 docker compose up -d db
 ```
 
-Generate the Prisma client, apply migrations, and seed the database:
+Generate the Prisma client and apply migrations:
 
 ```sh
 pnpm --filter backend db:generate
 pnpm --filter backend db:migrate
-pnpm --filter backend db:seed
 ```
 
 Start the development workspaces:
@@ -80,6 +79,9 @@ Start the development workspaces:
 ```sh
 pnpm dev
 ```
+
+When the backend starts with an empty database, it automatically creates the
+default skill catalog, developers, and developer-skill mappings.
 
 The local services use these ports:
 

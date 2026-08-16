@@ -3,8 +3,8 @@
   "extends": "@repo/typescript-config/base.json",
   "compilerOptions": {
     "outDir": "dist",
-    "rootDir": "src"
+    "rootDir": "."
   },
-  "include": ["src"],
+  "include": ["src", "prisma/seeds"],
   "exclude": ["node_modules", "dist"]
 }

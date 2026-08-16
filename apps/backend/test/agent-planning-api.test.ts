@@ -30,8 +30,8 @@ import {
 } from "../src/lib/agent-orchestration/agent-orchestration-provider.js";
 import { FakeHealthRepository } from "./lib/fake-health-repository.js";
 import { FakeAgentOrchestrationProvider } from "./lib/fake-agent-orchestration-provider.js";
-import { seedApplicationData } from "../prisma/seed.js";
-import { applicationSeedIds } from "../prisma/seed-ids.js";
+import { seedTestData } from "./fixtures/seed.js";
+import { testSeedIds } from "./fixtures/seed-ids.js";
 import type { PatchTaskInput } from "@repo/shared-types";
 
 async function resetDatabase(): Promise<void> {
@@ -44,7 +44,7 @@ function node(overrides: Record<string, unknown> = {}) {
   return {
     title: "Root task",
     description: "Create the requested feature.",
-    requiredSkillIds: [applicationSeedIds.skills.react],
+    requiredSkillIds: [testSeedIds.skills.react],
     requiredRole: "Frontend Engineer",
     unmatchedSkillRequirements: [],
     subtasks: [],
@@ -129,7 +129,7 @@ class FailOnTitleTaskRepository implements TaskRepository {
 describe("agent orchestration api", () => {
   beforeEach(async () => {
     await resetDatabase();
-    await seedApplicationData(prisma);
+    await seedTestData(prisma);
   });
   afterAll(resetDatabase);
 
@@ -160,7 +160,7 @@ describe("agent orchestration api", () => {
       data: {
         title: "Ada's active work",
         description: "Existing work",
-        assigneeId: applicationSeedIds.developers.adaLovelace,
+        assigneeId: testSeedIds.developers.adaLovelace,
       },
     });
     const provider = new FakeAgentOrchestrationProvider(async () => ({
@@ -186,9 +186,7 @@ describe("agent orchestration api", () => {
     const body = response.json() as AgentTaskCreatedResponse;
     expect(body.status).toBe("created");
     expect(body.tasks).toHaveLength(2);
-    expect(body.tasks[0].assigneeId).toBe(
-      applicationSeedIds.developers.graceHopper,
-    );
+    expect(body.tasks[0].assigneeId).toBe(testSeedIds.developers.graceHopper);
     expect(body.tasks[1].parentTaskId).toBe(body.tasks[0].id);
     expect(body.staffingGaps).toEqual([]);
   });
@@ -199,18 +197,18 @@ describe("agent orchestration api", () => {
         {
           title: "Active Ada 1",
           description: "Work",
-          assigneeId: applicationSeedIds.developers.adaLovelace,
+          assigneeId: testSeedIds.developers.adaLovelace,
         },
         {
           title: "Active Ada 2",
           description: "Work",
-          assigneeId: applicationSeedIds.developers.adaLovelace,
+          assigneeId: testSeedIds.developers.adaLovelace,
         },
         {
           title: "Done Grace",
           description: "Work",
           status: "DONE",
-          assigneeId: applicationSeedIds.developers.graceHopper,
+          assigneeId: testSeedIds.developers.graceHopper,
         },
         { title: "Unassigned", description: "Work" },
       ],
@@ -219,9 +217,7 @@ describe("agent orchestration api", () => {
     const counts = await prisma.$transaction((tx) =>
       repository.countActiveAssignmentsByDeveloper(tx),
     );
-    expect(counts).toEqual(
-      new Map([[applicationSeedIds.developers.adaLovelace, 2]]),
-    );
+    expect(counts).toEqual(new Map([[testSeedIds.developers.adaLovelace, 2]]));
   });
 
   it("creates unassigned AI work and reports the required role", async () => {
@@ -231,7 +227,7 @@ describe("agent orchestration api", () => {
         id: aiSkillId,
         name: "Artificial Intelligence",
         description: "Machine-learning systems.",
-        categoryId: applicationSeedIds.categories.backend,
+        categoryId: testSeedIds.categories.backend,
       },
     });
     const provider = new FakeAgentOrchestrationProvider(async () => ({

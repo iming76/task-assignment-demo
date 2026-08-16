@@ -1,0 +1,223 @@
+export const skills = [
+  {
+    category: "Frontend",
+    skills: [
+      "JavaScript",
+      "TypeScript",
+      "React",
+      "Next.js",
+      "Vue.js",
+      "Nuxt.js",
+      "Angular",
+      "Svelte",
+      "HTML5",
+      "CSS3",
+      "Sass",
+      "Tailwind CSS",
+    ],
+  },
+  {
+    category: "Backend",
+    skills: [
+      "Node.js",
+      "Express.js",
+      "Fastify",
+      "Python",
+      "Django",
+      "Flask",
+      "FastAPI",
+      "PHP",
+      "Laravel",
+      "Rust",
+    ],
+  },
+  {
+    category: "Database",
+    skills: [
+      "PostgreSQL",
+      "MySQL",
+      "MongoDB",
+      "Redis",
+      "DynamoDB",
+      "SQLite",
+      "Prisma",
+    ],
+  },
+  {
+    category: "DevOps & Cloud",
+    skills: [
+      "AWS",
+      "GCP",
+      "Azure",
+      "Docker",
+      "Kubernetes",
+      "Terraform",
+      "GitHub Actions",
+      "CI/CD",
+      "Linux",
+    ],
+  },
+  {
+    category: "Testing & QA",
+    skills: [
+      "Jest",
+      "Vitest",
+      "Playwright",
+      "Cypress",
+      "React Testing Library",
+      "Unit Testing",
+      "Integration Testing",
+      "E2E Testing",
+    ],
+  },
+  {
+    category: "Mobile",
+    skills: ["React Native", "Flutter", "Swift", "Kotlin", "Android", "iOS"],
+  },
+  {
+    category: "AI & Machine Learning",
+    skills: [
+      "Python ML",
+      "OpenAI API",
+      "Gemini API",
+      "LangChain",
+      "Hugging Face",
+      "RAG",
+      "LLM",
+      "Computer Vision",
+    ],
+  },
+  {
+    category: "Security",
+    skills: [
+      "OAuth",
+      "JWT",
+      "OWASP",
+      "API Security",
+      "Web Security",
+      "Penetration Testing",
+    ],
+  },
+  {
+    category: "UI/UX",
+    skills: [
+      "Figma",
+      "UX Design",
+      "UI Design",
+      "Design Systems",
+      "Accessibility",
+      "Prototyping",
+    ],
+  },
+  {
+    category: "Architecture",
+    skills: [
+      "System Design",
+      "Microservices",
+      "REST API",
+      "GraphQL",
+      "Event-Driven Architecture",
+      "Micro Frontends",
+    ],
+  },
+  {
+    category: "Data Engineering",
+    skills: [
+      "ETL",
+      "Data Pipelines",
+      "Apache Spark",
+      "Kafka",
+      "Airflow",
+      "Data Warehousing",
+    ],
+  },
+  {
+    category: "Project Management",
+    skills: [
+      "Agile",
+      "Scrum",
+      "Kanban",
+      "Technical Leadership",
+      "Requirements Analysis",
+    ],
+  },
+] as const;
+
+type SkillName = (typeof skills)[number]["skills"][number];
+
+type DeveloperSeedData = {
+  name: string;
+  skills: readonly SkillName[];
+};
+
+export const developers = [
+  {
+    name: "Alice Tan",
+    skills: [
+      "TypeScript",
+      "React",
+      "Next.js",
+      "HTML5",
+      "CSS3",
+      "Tailwind CSS",
+      "Jest",
+    ],
+  },
+  {
+    name: "Benjamin Lee",
+    skills: [
+      "Node.js",
+      "TypeScript",
+      "Express.js",
+      "PostgreSQL",
+      "Prisma",
+      "Docker",
+    ],
+  },
+  {
+    name: "Chloe Lim",
+    skills: ["Python", "FastAPI", "Django", "PostgreSQL", "Redis", "Docker"],
+  },
+  {
+    name: "Daniel Wong",
+    skills: ["AWS", "Docker", "Kubernetes", "Terraform", "CI/CD", "Linux"],
+  },
+  {
+    name: "Ethan Koh",
+    skills: ["React Native", "TypeScript", "Flutter", "iOS", "Android"],
+  },
+  {
+    name: "Fiona Ng",
+    skills: ["Python ML", "OpenAI API", "LangChain", "RAG", "Hugging Face"],
+  },
+  {
+    name: "Gabriel Tan",
+    skills: ["PostgreSQL", "MongoDB", "Redis", "DynamoDB", "Prisma"],
+  },
+  {
+    name: "Hannah Goh",
+    skills: [
+      "Figma",
+      "UX Design",
+      "UI Design",
+      "Design Systems",
+      "Accessibility",
+    ],
+  },
+  {
+    name: "Ivan Teo",
+    skills: ["System Design", "Microservices", "REST API", "GraphQL", "Kafka"],
+  },
+  {
+    name: "Jasmine Ho",
+    skills: ["Jest", "Vitest", "Playwright", "Cypress", "E2E Testing"],
+  },
+  {
+    name: "Kevin Chua",
+    skills: ["JavaScript", "Vue.js", "Nuxt.js", "Svelte", "TypeScript"],
+  },
+  {
+    name: "Lucas Ong",
+    skills: ["Rust", "Node.js", "PostgreSQL", "Docker", "Kubernetes"],
+  },
+] as const satisfies readonly DeveloperSeedData[];

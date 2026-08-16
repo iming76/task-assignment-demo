@@ -31,6 +31,7 @@ import {
   isSupportedSkillInferenceProvider,
 } from "./lib/skill-inference/openai-skill-inference-provider.js";
 import { DefaultSkillInferenceService } from "./lib/skill-inference/skill-inference-service.js";
+import { seedDatabaseIfEmpty } from "../prisma/seeds/seed.js";
 
 const env = loadEnv();
 
@@ -93,6 +94,11 @@ process.once("SIGTERM", () => void shutdown());
 process.once("SIGINT", () => void shutdown());
 
 try {
+  const wasSeeded = await seedDatabaseIfEmpty(prisma);
+  if (wasSeeded) {
+    app.log.info("Database was empty; initial seed data created.");
+  }
+
   await app.listen({ port: env.port, host: "0.0.0.0" });
 } catch (error) {
   app.log.error(error);

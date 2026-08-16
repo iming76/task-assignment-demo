@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { prisma } from "../../src/lib/prisma.js";
-import { applicationSeedIds } from "../../prisma/seed-ids.js";
+import { testSeedIds } from "./seed-ids.js";
 import { loadFixtures } from "./load-fixtures.js";
 import { testFixtureIds } from "./fixture-ids.js";
 
@@ -21,7 +21,7 @@ describe("loadFixtures", () => {
     await expect(loadFixtures(prisma)).rejects.toThrow(/NODE_ENV=test/);
   });
 
-  it("loads test-only records under NODE_ENV=test without touching application seed IDs", async () => {
+  it("loads fixture records without touching the shared test seed IDs", async () => {
     await resetDatabase();
 
     await loadFixtures(prisma);
@@ -31,10 +31,10 @@ describe("loadFixtures", () => {
     });
     expect(developer.name).toBe("Fixture Developer");
 
-    const applicationDeveloper = await prisma.developer.findUnique({
-      where: { id: applicationSeedIds.developers.adaLovelace },
+    const seededDeveloper = await prisma.developer.findUnique({
+      where: { id: testSeedIds.developers.adaLovelace },
     });
-    expect(applicationDeveloper).toBeNull();
+    expect(seededDeveloper).toBeNull();
 
     await resetDatabase();
   });

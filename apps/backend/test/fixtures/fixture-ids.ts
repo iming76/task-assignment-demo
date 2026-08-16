@@ -1,6 +1,6 @@
 /**
- * Test-only identifiers, disjoint from prisma/seed-ids.ts application seed
- * IDs by construction (different leading byte: "b" vs "a").
+ * Test-only identifiers, disjoint from seed-ids.ts by construction (different
+ * leading byte: "b" vs "a").
  */
 export const testFixtureIds = {
   categories: {

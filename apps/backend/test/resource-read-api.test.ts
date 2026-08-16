@@ -18,7 +18,7 @@ import { PrismaCategoryRepository } from "../src/lib/repositories/category-repos
 import { createCategoryService } from "../src/services/category-service.js";
 import { createHealthService } from "../src/services/health-service.js";
 import { FakeHealthRepository } from "./lib/fake-health-repository.js";
-import { seedApplicationData } from "../prisma/seed.js";
+import { seedTestData } from "./fixtures/seed.js";
 import { PrismaTransactionRunner } from "../src/lib/transaction.js";
 
 async function resetDatabase(): Promise<void> {
@@ -51,9 +51,9 @@ function buildTestApp() {
 
 describe("resource read api", () => {
   beforeAll(async () => {
-    // Seed the database with application data for tests
+    // Seed representative data used by these tests.
     await resetDatabase();
-    await seedApplicationData(prisma);
+    await seedTestData(prisma);
   });
 
   afterAll(async () => {

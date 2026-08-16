@@ -1,23 +1,41 @@
 ## Purpose
 
-This capability defines the externally verifiable behavior for database seeds so downstream changes can rely on a stable boundary.
+This capability defines the boundary for initial application data and
+deterministic database data used by automated tests.
 
 ## Requirements
 
-### Requirement: Idempotent application seed
+### Requirement: Idempotent test seed
 
-The normal seed command SHALL create the documented categories, described skills, and representative developers using stable identifiers without duplication.
+The test seed SHALL create representative categories, skills, and developers
+using stable identifiers without duplication, and SHALL refuse to run outside a
+test environment.
 
 #### Scenario: Seed runs twice
 
-- **WHEN** the application seed command runs twice against the same migrated database
+- **WHEN** the test seed runs twice against the same migrated test database
 - **THEN** the second run leaves the same records and relationships as the first
+
+### Requirement: Automatic application seed
+
+The backend SHALL create the default categories, skills, developers, and
+developer-skill relationships when it starts with an empty database.
+
+#### Scenario: Backend starts with an empty database
+
+- **WHEN** the backend starts and no category, skill, developer, or task data exists
+- **THEN** the default application data is created before the server accepts requests
+
+#### Scenario: Backend starts with existing data
+
+- **WHEN** the backend starts and any category, skill, developer, or task data exists
+- **THEN** automatic application seeding is skipped and existing data is unchanged
 
 ### Requirement: Isolated test fixtures
 
-Test fixture identifiers MUST be disjoint from application seed identifiers and MUST NOT be loaded by the normal seed command.
+Test fixture identifiers MUST be disjoint from the shared test seed identifiers.
 
-#### Scenario: Normal database is inspected
+#### Scenario: Test data isolation
 
-- **WHEN** the application seed completes in a non-test database
-- **THEN** no test fixture identifier is present
+- **WHEN** the application seed runs
+- **THEN** no test seed or focused fixture identifier is loaded

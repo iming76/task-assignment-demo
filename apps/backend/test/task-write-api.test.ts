@@ -13,8 +13,8 @@ import { createCategoryService } from "../src/services/category-service.js";
 import { createHealthService } from "../src/services/health-service.js";
 import { PrismaTransactionRunner } from "../src/lib/transaction.js";
 import { FakeHealthRepository } from "./lib/fake-health-repository.js";
-import { seedApplicationData } from "../prisma/seed.js";
-import { applicationSeedIds } from "../prisma/seed-ids.js";
+import { seedTestData } from "./fixtures/seed.js";
+import { testSeedIds } from "./fixtures/seed-ids.js";
 
 async function resetDatabase(): Promise<void> {
   await prisma.$executeRawUnsafe(
@@ -49,7 +49,7 @@ const unknownId = "00000000-0000-4000-8000-999999999999";
 describe("task write api", () => {
   beforeEach(async () => {
     await resetDatabase();
-    await seedApplicationData(prisma);
+    await seedTestData(prisma);
   });
 
   afterAll(async () => {
@@ -67,7 +67,7 @@ describe("task write api", () => {
         payload: {
           title: "Wire up assignment endpoint",
           description: "Add the endpoint and enforce skill eligibility.",
-          requiredSkillIds: [applicationSeedIds.skills.react],
+          requiredSkillIds: [testSeedIds.skills.react],
         },
       });
 
@@ -77,7 +77,7 @@ describe("task write api", () => {
       expect(task.assigneeId).toBeNull();
       expect(task.parentTaskId).toBeNull();
       expect(task.depth).toBe(1);
-      expect(task.requiredSkillIds).toEqual([applicationSeedIds.skills.react]);
+      expect(task.requiredSkillIds).toEqual([testSeedIds.skills.react]);
     });
 
     it("falls back to an empty required-skill set when the field is omitted", async () => {
@@ -202,7 +202,7 @@ describe("task write api", () => {
         payload: {
           title: "Task",
           description: "Description.",
-          requiredSkillIds: [applicationSeedIds.skills.react],
+          requiredSkillIds: [testSeedIds.skills.react],
           ...overrides,
         },
       });
@@ -229,20 +229,20 @@ describe("task write api", () => {
       await app.ready();
       const task = await createTask(app, {
         requiredSkillIds: [
-          applicationSeedIds.skills.react,
-          applicationSeedIds.skills.typescript,
+          testSeedIds.skills.react,
+          testSeedIds.skills.typescript,
         ],
       });
 
       const response = await app.inject({
         method: "PATCH",
         url: `/tasks/${task.id}`,
-        payload: { assigneeId: applicationSeedIds.developers.adaLovelace },
+        payload: { assigneeId: testSeedIds.developers.adaLovelace },
       });
 
       expect(response.statusCode).toBe(200);
       expect((response.json() as Task).assigneeId).toBe(
-        applicationSeedIds.developers.adaLovelace,
+        testSeedIds.developers.adaLovelace,
       );
     });
 
@@ -250,13 +250,13 @@ describe("task write api", () => {
       const app = buildTestApp();
       await app.ready();
       const task = await createTask(app, {
-        requiredSkillIds: [applicationSeedIds.skills.postgresql],
+        requiredSkillIds: [testSeedIds.skills.postgresql],
       });
 
       const response = await app.inject({
         method: "PATCH",
         url: `/tasks/${task.id}`,
-        payload: { assigneeId: applicationSeedIds.developers.alanTuring },
+        payload: { assigneeId: testSeedIds.developers.alanTuring },
       });
 
       expect(response.statusCode).toBe(409);
@@ -269,19 +269,19 @@ describe("task write api", () => {
       const app = buildTestApp();
       await app.ready();
       const task = await createTask(app, {
-        requiredSkillIds: [applicationSeedIds.skills.nodejs],
+        requiredSkillIds: [testSeedIds.skills.nodejs],
       });
       await app.inject({
         method: "PATCH",
         url: `/tasks/${task.id}`,
-        payload: { assigneeId: applicationSeedIds.developers.alanTuring },
+        payload: { assigneeId: testSeedIds.developers.alanTuring },
       });
 
       const response = await app.inject({
         method: "PATCH",
         url: `/tasks/${task.id}`,
         payload: {
-          requiredSkillIds: [applicationSeedIds.skills.postgresql],
+          requiredSkillIds: [testSeedIds.skills.postgresql],
         },
       });
 
@@ -295,10 +295,8 @@ describe("task write api", () => {
         url: `/tasks/${task.id}`,
       });
       const state = stateResponse.json() as Task;
-      expect(state.assigneeId).toBe(applicationSeedIds.developers.alanTuring);
-      expect(state.requiredSkillIds).toEqual([
-        applicationSeedIds.skills.nodejs,
-      ]);
+      expect(state.assigneeId).toBe(testSeedIds.developers.alanTuring);
+      expect(state.requiredSkillIds).toEqual([testSeedIds.skills.nodejs]);
     });
 
     it("explicitly unassigns a task", async () => {
@@ -308,7 +306,7 @@ describe("task write api", () => {
       await app.inject({
         method: "PATCH",
         url: `/tasks/${task.id}`,
-        payload: { assigneeId: applicationSeedIds.developers.adaLovelace },
+        payload: { assigneeId: testSeedIds.developers.adaLovelace },
       });
 
       const response = await app.inject({
@@ -329,12 +327,12 @@ describe("task write api", () => {
       const response = await app.inject({
         method: "PATCH",
         url: `/tasks/${task.id}`,
-        payload: { assigneeId: applicationSeedIds.developers.alanTuring },
+        payload: { assigneeId: testSeedIds.developers.alanTuring },
       });
 
       expect(response.statusCode).toBe(200);
       expect((response.json() as Task).assigneeId).toBe(
-        applicationSeedIds.developers.alanTuring,
+        testSeedIds.developers.alanTuring,
       );
     });
 

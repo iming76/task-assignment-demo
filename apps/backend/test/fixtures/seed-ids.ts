@@ -1,9 +1,8 @@
 /**
- * Stable identifiers for the idempotent application seed. Keep these fixed:
- * the seed script upserts by ID, and any change here creates new rows instead
- * of updating existing ones. Must stay disjoint from test/fixtures/fixture-ids.ts.
+ * Stable identifiers for the test data seed. Keep these fixed so tests can
+ * reference deterministic records. They must stay disjoint from fixture-ids.ts.
  */
-export const applicationSeedIds = {
+export const testSeedIds = {
   categories: {
     frontend: "a0000000-0000-4000-8000-000000000001",
     backend: "a0000000-0000-4000-8000-000000000002",

@@ -17,8 +17,8 @@ import { FakeSkillInferenceProvider } from "./lib/fake-skill-inference-provider.
 import { DefaultSkillInferenceService } from "../src/lib/skill-inference/skill-inference-service.js";
 import type { SkillInferenceProvider } from "../src/lib/skill-inference/skill-inference-provider.js";
 import { NotConfiguredSkillInferenceProvider } from "../src/lib/skill-inference/skill-inference-provider.js";
-import { seedApplicationData } from "../prisma/seed.js";
-import { applicationSeedIds } from "../prisma/seed-ids.js";
+import { seedTestData } from "./fixtures/seed.js";
+import { testSeedIds } from "./fixtures/seed-ids.js";
 
 async function resetDatabase(): Promise<void> {
   await prisma.$executeRawUnsafe(
@@ -52,7 +52,7 @@ function buildTestApp(provider: SkillInferenceProvider) {
 describe("task skill inference", () => {
   beforeEach(async () => {
     await resetDatabase();
-    await seedApplicationData(prisma);
+    await seedTestData(prisma);
   });
 
   afterAll(async () => {
@@ -61,7 +61,7 @@ describe("task skill inference", () => {
 
   it("invokes inference and persists its result when requiredSkillIds is omitted", async () => {
     const provider = new FakeSkillInferenceProvider(async () => [
-      applicationSeedIds.skills.react,
+      testSeedIds.skills.react,
     ]);
     const app = buildTestApp(provider);
     await app.ready();
@@ -74,14 +74,14 @@ describe("task skill inference", () => {
 
     expect(response.statusCode).toBe(201);
     expect((response.json() as Task).requiredSkillIds).toEqual([
-      applicationSeedIds.skills.react,
+      testSeedIds.skills.react,
     ]);
     expect(provider.callCount).toBe(1);
   });
 
   it("skips inference when requiredSkillIds is explicitly an empty array", async () => {
     const provider = new FakeSkillInferenceProvider(async () => [
-      applicationSeedIds.skills.react,
+      testSeedIds.skills.react,
     ]);
     const app = buildTestApp(provider);
     await app.ready();
@@ -103,7 +103,7 @@ describe("task skill inference", () => {
 
   it("skips inference when requiredSkillIds is explicitly non-empty", async () => {
     const provider = new FakeSkillInferenceProvider(async () => [
-      applicationSeedIds.skills.react,
+      testSeedIds.skills.react,
     ]);
     const app = buildTestApp(provider);
     await app.ready();
@@ -114,20 +114,20 @@ describe("task skill inference", () => {
       payload: {
         title: "Backend work",
         description: "Explicit skills given.",
-        requiredSkillIds: [applicationSeedIds.skills.nodejs],
+        requiredSkillIds: [testSeedIds.skills.nodejs],
       },
     });
 
     expect(response.statusCode).toBe(201);
     expect((response.json() as Task).requiredSkillIds).toEqual([
-      applicationSeedIds.skills.nodejs,
+      testSeedIds.skills.nodejs,
     ]);
     expect(provider.callCount).toBe(0);
   });
 
   it("never invokes inference during a patch, even when requiredSkillIds stays unset", async () => {
     const provider = new FakeSkillInferenceProvider(async () => [
-      applicationSeedIds.skills.react,
+      testSeedIds.skills.react,
     ]);
     const app = buildTestApp(provider);
     await app.ready();

@@ -6,7 +6,7 @@ import { navigationItems } from "../config/navigation";
 
 export function Navbar() {
   return (
-    <nav className="flex gap-4 border-b px-6 py-4">
+    <nav className="flex gap-4 border-b px-6 py-4 sticky top-0 left-0 bg-background z-50">
       {navigationItems.map((item) => (
         <NavLink
           key={item.path}

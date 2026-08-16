@@ -57,15 +57,18 @@ export class OpenAiAgentOrchestrationProvider implements AgentOrchestrationProvi
         tools: {
           listSkills: tool({
             description:
-              "List all current canonical skills with their names and descriptions.",
+              "List all current canonical skills with their names, descriptions, and category.",
             inputSchema: z.object({}),
             execute: () => {
               skillCatalogListed = true;
-              return context.skills.map(({ id, name, description }) => ({
-                id,
-                name,
-                description,
-              }));
+              return context.skills.map(
+                ({ id, name, description, categoryId }) => ({
+                  id,
+                  name,
+                  description,
+                  categoryId,
+                }),
+              );
             },
           }),
           submitDecision: tool({

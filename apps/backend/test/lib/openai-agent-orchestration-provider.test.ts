@@ -52,6 +52,7 @@ describe("OpenAiAgentOrchestrationProvider", () => {
           id: "skill-ai",
           name: "Artificial Intelligence",
           description: "Machine learning and AI features.",
+          categoryId: "category-backend",
         },
       ]);
       await tools.submitDecision.execute({

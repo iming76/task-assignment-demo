@@ -1,6 +1,7 @@
 import Fastify, { type FastifyInstance } from "fastify";
 import { registerErrorHandler } from "./errors/error-mapper.js";
 import { registerAgentTaskRoutes } from "./routes/agent-task/routes.js";
+import { createAgentTaskHandlers } from "./routes/agent-task/handlers.js";
 import { registerCategoryRoutes } from "./routes/categories/routes.js";
 import { createCategoryHandlers } from "./routes/categories/handlers.js";
 import { registerDeveloperRoutes } from "./routes/developers/routes.js";
@@ -16,6 +17,7 @@ import type { TaskService } from "./services/task-service.js";
 import type { DeveloperService } from "./services/developer-service.js";
 import type { SkillService } from "./services/skill-service.js";
 import type { CategoryService } from "./services/category-service.js";
+import type { AgentTaskService } from "./services/agent-task-service.js";
 
 /**
  * Dependencies the composition root injects into route handlers. Production
@@ -28,6 +30,7 @@ export interface AppDependencies {
   developerService: DeveloperService;
   skillService: SkillService;
   categoryService: CategoryService;
+  agentTaskService: AgentTaskService;
 }
 
 export interface AppOptions {
@@ -54,7 +57,7 @@ export function buildApp(
   registerDeveloperRoutes(app, createDeveloperHandlers(deps.developerService));
   registerSkillRoutes(app, createSkillHandlers(deps.skillService));
   registerCategoryRoutes(app, createCategoryHandlers(deps.categoryService));
-  registerAgentTaskRoutes(app);
+  registerAgentTaskRoutes(app, createAgentTaskHandlers(deps.agentTaskService));
 
   return app;
 }

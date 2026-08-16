@@ -8,6 +8,8 @@ export interface CreateTaskRecord {
   requiredSkillIds: string[];
   parentTaskId: string | null;
   depth: number;
+  /** Omitted by the regular create flow; set by agent-plan apply to persist a reviewed assignment atomically. */
+  assigneeId?: string | null;
 }
 
 /**
@@ -92,6 +94,7 @@ export class PrismaTaskRepository implements TaskRepository {
         description: input.description,
         depth: input.depth,
         parentTaskId: input.parentTaskId,
+        assigneeId: input.assigneeId ?? null,
         requiredSkills: {
           create: input.requiredSkillIds.map((skillId) => ({ skillId })),
         },

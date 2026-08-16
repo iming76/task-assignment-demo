@@ -13,16 +13,36 @@ import { DefaultSkillService } from "./services/skill-service.js";
 import { PrismaCategoryRepository } from "./lib/repositories/category-repository.js";
 import { DefaultCategoryService } from "./services/category-service.js";
 import { PrismaTransactionRunner } from "./lib/transaction.js";
+import { DefaultAgentTaskService } from "./services/agent-task-service.js";
+import {
+  NotConfiguredTaskPlanningProvider,
+  type TaskPlanningProvider,
+} from "./lib/task-planning/task-planning-provider.js";
+import {
+  OpenAiTaskPlanningProvider,
+  isSupportedTaskPlanningProvider,
+} from "./lib/task-planning/openai-task-planning-provider.js";
 
 const env = loadEnv();
 
 const developerRepository = new PrismaDeveloperRepository(prisma);
 const skillRepository = new PrismaSkillRepository(prisma);
+const taskRepository = new PrismaTaskRepository(prisma);
+
+const taskPlanningProvider: TaskPlanningProvider =
+  env.agentPlanning.apiKey &&
+  isSupportedTaskPlanningProvider(env.agentPlanning.provider)
+    ? new OpenAiTaskPlanningProvider({
+        apiKey: env.agentPlanning.apiKey,
+        model: env.agentPlanning.model,
+        timeoutMs: env.agentPlanning.timeoutMs,
+      })
+    : new NotConfiguredTaskPlanningProvider();
 
 const app = buildApp({
   healthService: new DefaultHealthService(new PrismaHealthRepository(prisma)),
   taskService: new DefaultTaskService(
-    new PrismaTaskRepository(prisma),
+    taskRepository,
     developerRepository,
     skillRepository,
     new PrismaTransactionRunner(prisma),
@@ -31,6 +51,13 @@ const app = buildApp({
   skillService: new DefaultSkillService(skillRepository),
   categoryService: new DefaultCategoryService(
     new PrismaCategoryRepository(prisma),
+  ),
+  agentTaskService: new DefaultAgentTaskService(
+    taskPlanningProvider,
+    skillRepository,
+    developerRepository,
+    taskRepository,
+    new PrismaTransactionRunner(prisma),
   ),
 });
 

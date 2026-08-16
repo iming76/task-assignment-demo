@@ -4,7 +4,7 @@ The product cannot persist assignments or arbitrary task hierarchies until its n
 
 ## What Changes
 
-- Add Prisma models, join tables, self-referencing tasks, constraints, indexes, delete behavior, and the initial migration.
+- Add Prisma models, join tables, self-referencing tasks with persisted hierarchy depth, constraints, indexes, delete behavior, and the initial migration.
 - Keep this change independently reviewable and limited to its numbered task-plan boundary.
 
 ## Capabilities

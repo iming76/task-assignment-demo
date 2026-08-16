@@ -221,10 +221,20 @@ describe("task hierarchy", () => {
       data: { title: "Root", description: "..." },
     });
     const child = await prisma.task.create({
-      data: { title: "Child", description: "...", parentTaskId: root.id },
+      data: {
+        title: "Child",
+        description: "...",
+        parentTaskId: root.id,
+        depth: root.depth + 1,
+      },
     });
     const grandchild = await prisma.task.create({
-      data: { title: "Grandchild", description: "...", parentTaskId: child.id },
+      data: {
+        title: "Grandchild",
+        description: "...",
+        parentTaskId: child.id,
+        depth: child.depth + 1,
+      },
     });
 
     const [persistedRoot, persistedChild, persistedGrandchild] =
@@ -235,7 +245,10 @@ describe("task hierarchy", () => {
       ]);
 
     expect(persistedRoot.parentTaskId).toBeNull();
+    expect(persistedRoot.depth).toBe(1);
     expect(persistedChild.parentTaskId).toBe(root.id);
+    expect(persistedChild.depth).toBe(2);
     expect(persistedGrandchild.parentTaskId).toBe(child.id);
+    expect(persistedGrandchild.depth).toBe(3);
   });
 });

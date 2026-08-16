@@ -21,8 +21,9 @@ Define and migrate the normalized PostgreSQL schema for developers, categories, 
 - [ ] Add explicit `DeveloperSkill` and `TaskSkill` join models with composite uniqueness and foreign-key indexes.
 - [ ] Enforce category-scoped skill-name uniqueness and required skill descriptions.
 - [ ] Add nullable assignee and arbitrary-depth self-referencing `parentTaskId` relations with safe delete behavior.
+- [ ] Persist one-based task depth, defaulting roots to `1` without imposing a maximum tier.
 - [ ] Map documented snake_case database names and commit the initial migration.
-- [ ] Test constraints, root tasks, three-level nesting, and migration against an empty PostgreSQL database.
+- [ ] Test constraints, root tasks, one-based three-level nesting, and migration against an empty PostgreSQL database.
 
 ## Acceptance checks
 

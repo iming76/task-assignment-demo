@@ -81,10 +81,10 @@ The draft uses `name` for the user-facing proposal. Applying it maps `name` to
 
 ### `GET /tasks`
 
-List every task as a flat JSON array. Each item includes `parentTaskId`, allowing
-the frontend to construct the arbitrary-depth tree without the API returning a
-different nested shape. Pagination and filtering are out of scope for the
-assignment-sized dataset.
+List every task as a flat JSON array. Each item includes `parentTaskId` and its
+one-based `depth`, allowing the frontend to construct the arbitrary-depth tree
+without the API returning a different nested shape. Pagination and filtering
+are out of scope for the assignment-sized dataset.
 
 **Responses**
 
@@ -112,7 +112,9 @@ Create a task.
   inferred IDs are persisted; failed or malformed inference degrades to `[]`
   and the returned task is visibly untagged.
 - `parentTaskId` — optional, must reference an existing task if present.
-- New tasks start with `status: "TODO"` and `assigneeId: null`.
+- `depth` is server-managed and must not be supplied by clients.
+- New tasks start with `status: "TODO"` and `assigneeId: null`. Root tasks have
+  `depth: 1`; subtasks receive their parent's depth plus one.
 
 **Responses**
 

@@ -52,6 +52,7 @@ model Task {
   title        String
   description  String
   status       TaskStatus @default(TODO)
+  depth        Int        @default(1)
   assigneeId   String?    @map("assignee_id")
   parentTaskId String?    @map("parent_task_id")
 

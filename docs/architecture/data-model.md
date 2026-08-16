@@ -20,7 +20,7 @@ DeveloperSkill (join table)
   developer_id, skill_id
 
 Task
-  id, title, description, status ("TODO" | "DONE")
+  id, title, description, status ("TODO" | "DONE"), depth (1 = root)
   assignee_id  -> Developer (nullable)
   parent_task_id -> Task (nullable, self-referencing)
 
@@ -51,6 +51,7 @@ export interface Task {
   title: string;
   description: string;
   status: TaskStatus;
+  depth: number;
   assigneeId: string | null;
   parentTaskId: string | null;
   requiredSkillIds: string[];
@@ -99,8 +100,10 @@ it.
 ## Task Hierarchy
 
 Tasks form an arbitrary-depth hierarchy through the self-referencing
-`parentTaskId`. Depth is not part of the persisted or shared `Task` shape;
-clients derive it while traversing the hierarchy when needed.
+`parentTaskId`. A one-based `depth` is persisted and included in the shared
+`Task` shape: roots default to `1`, and the backend stores a child's depth as
+its parent's depth plus one. Depth is informational and does not impose a
+maximum nesting tier.
 
 The relevant part of the Prisma model is:
 
@@ -109,6 +112,7 @@ model Task {
   id           String  @id @default(uuid())
   title        String
   description  String
+  depth        Int     @default(1)
   parentTaskId String? @map("parent_task_id")
 
   parent   Task?  @relation("TaskToSubtask", fields: [parentTaskId], references: [id], onDelete: Restrict)
@@ -124,8 +128,10 @@ relations. `Restrict` preserves the API rule that a task with subtasks cannot be
 deleted; the application must not silently cascade-delete its descendants.
 
 On creation, the backend verifies that a supplied parent exists and relies on
-the relation to preserve referential integrity. Any future re-parenting feature
-must reject cycles. Re-parenting is not part of the current API.
+the relation to preserve referential integrity. It reads the parent's depth and
+stores that value plus one in the same transaction. Any future re-parenting
+feature must reject cycles and transactionally update the moved subtree's
+depths. Re-parenting is not part of the current API.
 
 ## Completion Invariant
 

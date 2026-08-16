@@ -15,9 +15,9 @@ The database SHALL persist developers, categories, described skills, tasks, and 
 
 ### Requirement: Arbitrary-depth task relations
 
-The database SHALL allow each task to reference one nullable parent task and one nullable assignee without imposing a fixed hierarchy depth.
+The database SHALL allow each task to reference one nullable parent task and one nullable assignee without imposing a fixed hierarchy depth. Each task SHALL persist a one-based depth, with root tasks defaulting to depth `1` and child tasks storing their parent's depth plus one.
 
 #### Scenario: Three-level hierarchy
 
 - **WHEN** a root, child, and grandchild are inserted with valid references
-- **THEN** all records persist and each child retains the correct parent identifier
+- **THEN** all records persist with depths `1`, `2`, and `3`, and each child retains the correct parent identifier

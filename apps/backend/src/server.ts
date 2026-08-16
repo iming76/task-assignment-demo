@@ -22,6 +22,15 @@ import {
   OpenAiTaskPlanningProvider,
   isSupportedTaskPlanningProvider,
 } from "./lib/task-planning/openai-task-planning-provider.js";
+import {
+  NotConfiguredSkillInferenceProvider,
+  type SkillInferenceProvider,
+} from "./lib/skill-inference/skill-inference-provider.js";
+import {
+  OpenAiSkillInferenceProvider,
+  isSupportedSkillInferenceProvider,
+} from "./lib/skill-inference/openai-skill-inference-provider.js";
+import { DefaultSkillInferenceService } from "./lib/skill-inference/skill-inference-service.js";
 
 const env = loadEnv();
 
@@ -39,6 +48,16 @@ const taskPlanningProvider: TaskPlanningProvider =
       })
     : new NotConfiguredTaskPlanningProvider();
 
+const skillInferenceProvider: SkillInferenceProvider =
+  env.skillInference.apiKey &&
+  isSupportedSkillInferenceProvider(env.skillInference.provider)
+    ? new OpenAiSkillInferenceProvider({
+        apiKey: env.skillInference.apiKey,
+        model: env.skillInference.model,
+        timeoutMs: env.skillInference.timeoutMs,
+      })
+    : new NotConfiguredSkillInferenceProvider();
+
 const app = buildApp({
   healthService: new DefaultHealthService(new PrismaHealthRepository(prisma)),
   taskService: new DefaultTaskService(
@@ -46,6 +65,7 @@ const app = buildApp({
     developerRepository,
     skillRepository,
     new PrismaTransactionRunner(prisma),
+    new DefaultSkillInferenceService(skillInferenceProvider, skillRepository),
   ),
   developerService: new DefaultDeveloperService(developerRepository),
   skillService: new DefaultSkillService(skillRepository),

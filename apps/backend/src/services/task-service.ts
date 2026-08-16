@@ -10,9 +10,10 @@ import type { DeveloperRepository } from "../lib/repositories/developer-reposito
 import type { SkillRepository } from "../lib/repositories/skill-repository.js";
 import type { TaskRepository } from "../lib/repositories/task-repository.js";
 import {
-  NoopSkillInferenceProvider,
-  type SkillInferenceProvider,
-} from "../lib/skill-inference/skill-inference-provider.js";
+  DefaultSkillInferenceService,
+  type SkillInferenceService,
+} from "../lib/skill-inference/skill-inference-service.js";
+import { NotConfiguredSkillInferenceProvider } from "../lib/skill-inference/skill-inference-provider.js";
 import type {
   TransactionClient,
   TransactionRunner,
@@ -36,7 +37,10 @@ export class DefaultTaskService implements TaskService {
     private readonly developerRepository: DeveloperRepository,
     private readonly skillRepository: SkillRepository,
     private readonly transactionRunner: TransactionRunner,
-    private readonly skillInferenceProvider: SkillInferenceProvider = new NoopSkillInferenceProvider(),
+    private readonly skillInferenceService: SkillInferenceService = new DefaultSkillInferenceService(
+      new NotConfiguredSkillInferenceProvider(),
+      skillRepository,
+    ),
   ) {}
 
   async list(): Promise<Task[]> {
@@ -54,10 +58,9 @@ export class DefaultTaskService implements TaskService {
     // network call, which should not hold a DB transaction open.
     const requiredSkillIds =
       input.requiredSkillIds ??
-      (await this.skillInferenceProvider.inferSkillIds({
+      (await this.skillInferenceService.inferSkillIds({
         title: input.title,
         description: input.description,
-        availableSkillIds: [],
       }));
 
     return this.transactionRunner.run(async (tx) => {

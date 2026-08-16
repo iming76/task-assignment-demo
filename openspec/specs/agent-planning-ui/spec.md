@@ -6,14 +6,24 @@ This capability defines the externally verifiable behavior for agent planning ui
 
 ## Requirements
 
-### Requirement: Review before persistence
+### Requirement: Conversational agent-task orchestration
 
-The agent-task route MUST require explicit review and apply before a generated draft can create tasks.
+The agent-task route SHALL submit the user's conversation to the single orchestration endpoint and SHALL present the returned clarification or created-task outcome without a separate draft review/apply step.
 
-#### Scenario: Proposal returned
+#### Scenario: Clarification returned
 
-- **WHEN** the backend returns a recursive proposal
-- **THEN** the user can edit or discard it and no task mutation is sent until apply is confirmed
+- **WHEN** the backend returns `needs_clarification`
+- **THEN** the page displays the question, preserves the prior conversation, and lets the user submit a follow-up without showing a successful creation
+
+#### Scenario: Task tree created
+
+- **WHEN** the backend returns `created`
+- **THEN** the page displays the persisted task tree and does not send a separate apply mutation
+
+#### Scenario: Created tree contains staffing gaps
+
+- **WHEN** a created outcome contains one or more unassigned staffing gaps
+- **THEN** the page identifies each affected task and communicates its required role and skills without presenting creation as failed
 
 ### Requirement: Unavailable planning isolation
 

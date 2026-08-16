@@ -1,3 +1,5 @@
+# shared-api-contracts Specification
+
 ## Purpose
 
 This capability defines the externally verifiable behavior for shared api contracts so downstream changes can rely on a stable boundary.
@@ -6,12 +8,17 @@ This capability defines the externally verifiable behavior for shared api contra
 
 ### Requirement: Canonical transport contracts
 
-The shared package SHALL export request, response, recursive agent-draft, and public error types used by both applications.
+The shared package SHALL export resource request and response types plus the agent-task conversation, clarification, created-task, and staffing-gap types used by both applications, and SHALL no longer export proposal/apply draft transport types.
 
-#### Scenario: Consumer uses an API payload
+#### Scenario: Consumer handles an agent-task outcome
 
-- **WHEN** a backend or frontend consumer imports a public transport type
-- **THEN** the type resolves from @repo/shared-types without local redeclaration
+- **WHEN** a backend or frontend consumer imports the agent-task request or response union
+- **THEN** the type resolves from `@repo/shared-types` and discriminates clarification from created-task outcomes without local redeclaration
+
+#### Scenario: Consumer references a removed draft contract
+
+- **WHEN** a consumer still imports an agent proposal, apply, or recursive editable-draft transport type
+- **THEN** type checking fails and directs the consumer to migrate to the orchestration contract
 
 ### Requirement: Task skill omission semantics
 

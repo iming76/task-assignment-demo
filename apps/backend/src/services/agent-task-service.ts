@@ -187,16 +187,40 @@ function validatePlanSkills(
   listedSkillIds: Set<string>,
   currentSkillIds: Set<string>,
 ): void {
+  const planSkillIds = collectPlanSkillIds(nodes);
+  const missingFromListedCatalog = planSkillIds.filter(
+    (skillId) => !listedSkillIds.has(skillId),
+  );
+  const missingFromCurrentCatalog = planSkillIds.filter(
+    (skillId) => !currentSkillIds.has(skillId),
+  );
+  if (
+    missingFromListedCatalog.length > 0 ||
+    missingFromCurrentCatalog.length > 0
+  ) {
+    throw new AgentUnavailableError(
+      "Agent planning returned an invalid skill reference.",
+      {
+        cause: new Error(
+          `Missing from listed catalog: ${missingFromListedCatalog.join(", ") || "none"}; ` +
+            `missing from current catalog: ${missingFromCurrentCatalog.join(", ") || "none"}.`,
+        ),
+      },
+    );
+  }
+}
+
+function collectPlanSkillIds(nodes: PlannedTaskNode[]): string[] {
+  const skillIds = new Set<string>();
   for (const node of nodes) {
     for (const skillId of node.requiredSkillIds) {
-      if (!listedSkillIds.has(skillId) || !currentSkillIds.has(skillId)) {
-        throw new AgentUnavailableError(
-          "Agent planning returned an invalid skill reference.",
-        );
-      }
+      skillIds.add(skillId);
     }
-    validatePlanSkills(node.subtasks, listedSkillIds, currentSkillIds);
+    for (const skillId of collectPlanSkillIds(node.subtasks)) {
+      skillIds.add(skillId);
+    }
   }
+  return [...skillIds];
 }
 
 function selectAssignee(

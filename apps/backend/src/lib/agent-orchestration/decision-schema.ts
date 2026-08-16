@@ -40,6 +40,32 @@ export const agentDecisionSchema: z.ZodType<AgentDecision> = z.object({
 
 export const agentDecisionOutputSchema = agentDecisionSchema;
 
+export function createAgentDecisionOutputSchema(
+  allowedSkillIds: readonly string[],
+): z.ZodType<AgentDecision> {
+  const uniqueSkillIds = [...new Set(allowedSkillIds)];
+  const requiredSkillIdSchema =
+    uniqueSkillIds.length > 0
+      ? z.enum(uniqueSkillIds as [string, ...string[]])
+      : z.never();
+  const catalogPlannedTaskSchema: z.ZodType<PlannedTaskNode> = z.lazy(() =>
+    z.object({
+      title: z.string().trim().min(1).max(200),
+      description: z.string().trim().min(1).max(5000),
+      requiredSkillIds: z.array(requiredSkillIdSchema).max(50),
+      requiredRole: z.string().trim().min(1).max(100),
+      unmatchedSkillRequirements: z
+        .array(z.string().trim().min(1).max(100))
+        .max(20),
+      subtasks: z.array(catalogPlannedTaskSchema),
+    }),
+  );
+  return z.object({
+    action: z.literal("create_task_tree"),
+    tasks: z.array(catalogPlannedTaskSchema).min(1),
+  });
+}
+
 export function normalizeAgentDecisionOutput(value: unknown): AgentDecision {
   const parsed = agentDecisionOutputSchema.parse(value);
   return validateAgentDecision(parsed);

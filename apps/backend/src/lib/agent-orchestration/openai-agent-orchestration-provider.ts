@@ -14,7 +14,7 @@ import {
   type AgentOrchestrationResult,
 } from "./agent-orchestration-provider.js";
 import {
-  agentDecisionOutputSchema,
+  createAgentDecisionOutputSchema,
   normalizeAgentDecisionOutput,
   type AgentDecision,
 } from "./decision-schema.js";
@@ -49,6 +49,9 @@ export class OpenAiAgentOrchestrationProvider implements AgentOrchestrationProvi
   ): Promise<AgentOrchestrationResult> {
     let skillCatalogListed = false;
     let decision: AgentDecision | undefined;
+    const decisionOutputSchema = createAgentDecisionOutputSchema(
+      context.skills.map((skill) => skill.id),
+    );
     try {
       await generateText({
         model: this.model,
@@ -81,7 +84,7 @@ export class OpenAiAgentOrchestrationProvider implements AgentOrchestrationProvi
           submitDecision: tool({
             description:
               "Submit the final task-tree decision after skill discovery.",
-            inputSchema: agentDecisionOutputSchema,
+            inputSchema: decisionOutputSchema,
             execute: (input) => {
               const submittedDecision = normalizeAgentDecisionOutput(input);
               if (!skillCatalogListed) {

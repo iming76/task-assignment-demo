@@ -33,6 +33,9 @@ interface MockAgentTools {
     execute(input: Record<string, never>): Promise<unknown> | unknown;
   };
   submitDecision: {
+    inputSchema: {
+      safeParse(input: unknown): { success: boolean };
+    };
     execute(input: {
       action: "create_task_tree";
       tasks: unknown[];
@@ -48,6 +51,21 @@ describe("OpenAiAgentOrchestrationProvider", () => {
   it("lists the complete canonical skill catalog before creation", async () => {
     mockGenerateText.mockImplementationOnce(async (rawOptions: unknown) => {
       const tools = toolsFrom(rawOptions);
+      expect(
+        tools.submitDecision.inputSchema.safeParse({
+          action: "create_task_tree",
+          tasks: [
+            {
+              title: "Build AI moderation",
+              description: "Detect unsafe images.",
+              requiredSkillIds: ["invented-skill"],
+              requiredRole: "AI Engineer",
+              unmatchedSkillRequirements: [],
+              subtasks: [],
+            },
+          ],
+        }).success,
+      ).toBe(false);
       const listedSkills = await tools.listSkills.execute({});
       expect(listedSkills).toEqual([
         {

@@ -4,6 +4,7 @@ import type {
   AgentTaskMessage,
 } from "@repo/shared-types";
 import {
+  Badge,
   Button,
   Card,
   CardContent,
@@ -15,6 +16,8 @@ import {
 } from "@repo/ui";
 import { ApiClientError } from "../api";
 import { useOrchestrateAgentTask } from "../hooks/agent-task";
+import { useDevelopers } from "../hooks/developers";
+import { useSkills } from "../hooks/skills";
 
 function orchestrationErrorMessage(error: unknown): string {
   if (error instanceof ApiClientError && error.code === "AGENT_UNAVAILABLE") {
@@ -27,6 +30,15 @@ function orchestrationErrorMessage(error: unknown): string {
 
 export function AgentTaskPage() {
   const orchestrate = useOrchestrateAgentTask();
+  const developersQuery = useDevelopers();
+  const skillsQuery = useSkills();
+  const developers = developersQuery.data ?? [];
+  const skills = skillsQuery.data ?? [];
+  const skillName = (skillId: string) =>
+    skills.find((skill) => skill.id === skillId)?.name ?? skillId;
+  const assigneeName = (assigneeId: string) =>
+    developers.find((developer) => developer.id === assigneeId)?.name ??
+    assigneeId;
   const [messages, setMessages] = useState<AgentTaskMessage[]>([]);
   const [input, setInput] = useState("");
   const [question, setQuestion] = useState<string | null>(null);
@@ -89,9 +101,18 @@ export function AgentTaskPage() {
                   <p className="text-sm text-muted-foreground">
                     {task.description}
                   </p>
+                  {task.requiredSkillIds.length > 0 ? (
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      {task.requiredSkillIds.map((skillId) => (
+                        <Badge key={skillId} variant="secondary">
+                          {skillName(skillId)}
+                        </Badge>
+                      ))}
+                    </div>
+                  ) : null}
                   <p className="mt-1 text-xs text-muted-foreground">
                     {task.assigneeId
-                      ? `Assigned: ${task.assigneeId}`
+                      ? `Assigned: ${assigneeName(task.assigneeId)}`
                       : "Unassigned"}
                   </p>
                 </li>
@@ -108,7 +129,7 @@ export function AgentTaskPage() {
                     <li key={gap.taskId}>
                       {gap.taskTitle} requires {gap.requiredRole}
                       {gap.requiredSkillIds.length > 0
-                        ? ` (${gap.requiredSkillIds.join(", ")})`
+                        ? ` (${gap.requiredSkillIds.map(skillName).join(", ")})`
                         : ""}
                     </li>
                   ))}

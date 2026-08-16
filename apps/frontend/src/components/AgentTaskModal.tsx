@@ -14,7 +14,7 @@ export function AgentTaskModal({
         <DialogHeader>
           <DialogTitle>Add a task using agent</DialogTitle>
         </DialogHeader>
-        <AgentTaskFlow />
+        <AgentTaskFlow onClose={() => onOpenChange(false)} />
       </DialogContent>
     </Dialog>
   );

@@ -28,7 +28,13 @@ function orchestrationErrorMessage(error: unknown): string {
     : "Unable to plan and create the requested work.";
 }
 
-export function AgentTaskFlow({ onCreated }: { onCreated?: () => void }) {
+export function AgentTaskFlow({
+  onCreated,
+  onClose,
+}: {
+  onCreated?: () => void;
+  onClose?: () => void;
+}) {
   const orchestrate = useOrchestrateAgentTask();
   const developersQuery = useDevelopers();
   const skillsQuery = useSkills();
@@ -62,13 +68,6 @@ export function AgentTaskFlow({ onCreated }: { onCreated?: () => void }) {
         },
       },
     );
-  }
-
-  function startOver() {
-    setMessages([]);
-    setInput("");
-    setCreated(null);
-    orchestrate.reset();
   }
 
   if (created) {
@@ -126,8 +125,8 @@ export function AgentTaskFlow({ onCreated }: { onCreated?: () => void }) {
                 </ul>
               </div>
             ) : null}
-            <Button type="button" variant="outline" onClick={startOver}>
-              Plan more work
+            <Button type="button" variant="outline" onClick={onClose}>
+              Close
             </Button>
           </CardContent>
         </Card>
@@ -143,7 +142,7 @@ export function AgentTaskFlow({ onCreated }: { onCreated?: () => void }) {
         </FieldLabel>
         <textarea
           id="agent-input"
-          className="min-h-24 w-full rounded-md border border-input bg-transparent px-2.5 py-1.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          className="min-h-[50vh] w-full rounded-md border border-input bg-transparent px-2.5 py-1.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
           value={input}
           onChange={(event) => setInput(event.target.value)}
           required

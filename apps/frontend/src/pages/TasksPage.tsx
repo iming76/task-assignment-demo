@@ -1,5 +1,4 @@
 import { type FormEvent, useState } from "react";
-import { Link } from "react-router-dom";
 
 import type { Task } from "@repo/shared-types";
 import {
@@ -120,11 +119,6 @@ export function TasksPage() {
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-lg font-semibold">Tasks</h1>
         <div className="flex items-center gap-2">
-          {hasNoDevelopers ? (
-            <Button variant="outline" asChild>
-              <Link to="/developer">Add developer</Link>
-            </Button>
-          ) : null}
           <Button
             variant="outline"
             disabled={hasNoDevelopers}

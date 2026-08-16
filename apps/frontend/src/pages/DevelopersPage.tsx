@@ -1,5 +1,4 @@
 import { type FormEvent, useState } from "react";
-import { Link } from "react-router-dom";
 
 import type { Developer } from "@repo/shared-types";
 import {
@@ -110,11 +109,6 @@ export function DevelopersPage() {
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-lg font-semibold">Developers</h1>
         <div className="flex items-center gap-2">
-          {hasNoSkills ? (
-            <Button variant="outline" asChild>
-              <Link to="/skill">Create skill</Link>
-            </Button>
-          ) : null}
           <Button
             disabled={hasNoSkills}
             onClick={() => {

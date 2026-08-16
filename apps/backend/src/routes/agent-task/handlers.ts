@@ -15,7 +15,7 @@ export function createAgentTaskHandlers(
       const response = await service.orchestrate(
         request.body as AgentTaskRequest,
       );
-      if (response.status === "created") reply.status(201);
+      reply.status(201);
       return response;
     },
   };

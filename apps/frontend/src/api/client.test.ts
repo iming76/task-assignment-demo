@@ -150,8 +150,10 @@ describe("categories", () => {
 describe("agentTask", () => {
   it("orchestrates a conversation through the single endpoint", async () => {
     mockFetchOnce({
-      status: "needs_clarification",
-      question: "Which platform?",
+      status: "created",
+      message: "Created 1 task.",
+      tasks: [],
+      staffingGaps: [],
     });
     await apiClient.agentTask.orchestrate({
       messages: [{ role: "user", content: "Build a demo app." }],

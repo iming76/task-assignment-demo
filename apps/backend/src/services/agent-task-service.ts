@@ -59,12 +59,6 @@ export function createAgentTaskService(
     }
 
     const decision = result.decision;
-    if (decision.action === "ask_clarification") {
-      return {
-        status: "needs_clarification",
-        question: decision.question,
-      };
-    }
     if (!result.skillCatalogListed) {
       throw new AgentUnavailableError(
         "Agent planning did not inspect the current skill catalog.",

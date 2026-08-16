@@ -32,9 +32,8 @@ interface MockAgentTools {
   };
   submitDecision: {
     execute(input: {
-      action: "ask_clarification" | "create_task_tree";
-      question: string | null;
-      tasks: unknown[] | null;
+      action: "create_task_tree";
+      tasks: unknown[];
     }): Promise<unknown> | unknown;
   };
 }
@@ -44,23 +43,6 @@ function toolsFrom(rawOptions: unknown): MockAgentTools {
 }
 
 describe("OpenAiAgentOrchestrationProvider", () => {
-  it("allows clarification without searching", async () => {
-    mockGenerateText.mockImplementationOnce(async (rawOptions: unknown) => {
-      await toolsFrom(rawOptions).submitDecision.execute({
-        action: "ask_clarification",
-        question: "Which platform?",
-        tasks: null,
-      });
-      return {};
-    });
-    const result = await provider().decide({
-      messages: [{ role: "user", content: "Build it." }],
-      skills,
-    });
-    expect(result.decision.action).toBe("ask_clarification");
-    expect(result.skillCatalogListed).toBe(false);
-  });
-
   it("lists the complete canonical skill catalog before creation", async () => {
     mockGenerateText.mockImplementationOnce(async (rawOptions: unknown) => {
       const tools = toolsFrom(rawOptions);
@@ -74,7 +56,6 @@ describe("OpenAiAgentOrchestrationProvider", () => {
       ]);
       await tools.submitDecision.execute({
         action: "create_task_tree",
-        question: null,
         tasks: [
           {
             title: "Build AI moderation",
@@ -101,7 +82,6 @@ describe("OpenAiAgentOrchestrationProvider", () => {
       expect(await tools.listSkills.execute({})).toEqual([]);
       await tools.submitDecision.execute({
         action: "create_task_tree",
-        question: null,
         tasks: [
           {
             title: "Build quantum integration",
@@ -127,7 +107,6 @@ describe("OpenAiAgentOrchestrationProvider", () => {
     mockGenerateText.mockImplementationOnce(async (rawOptions: unknown) => {
       await toolsFrom(rawOptions).submitDecision.execute({
         action: "create_task_tree",
-        question: null,
         tasks: [
           {
             title: "Task",

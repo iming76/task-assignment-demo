@@ -10,10 +10,6 @@ export function useOrchestrateAgentTask() {
     mutationFn: (input: AgentTaskRequest) =>
       apiClient.agentTask.orchestrate(input),
     retry: false,
-    onSuccess: (response) => {
-      if (response.status === "created") {
-        return queryClient.invalidateQueries({ queryKey: tasksQueryKey });
-      }
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: tasksQueryKey }),
   });
 }

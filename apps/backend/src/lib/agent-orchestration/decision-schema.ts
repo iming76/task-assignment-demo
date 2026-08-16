@@ -15,9 +15,10 @@ export interface PlannedTaskNode {
   subtasks: PlannedTaskNode[];
 }
 
-export type AgentDecision =
-  | { action: "ask_clarification"; question: string }
-  | { action: "create_task_tree"; tasks: PlannedTaskNode[] };
+export type AgentDecision = {
+  action: "create_task_tree";
+  tasks: PlannedTaskNode[];
+};
 
 const plannedTaskSchema: z.ZodType<PlannedTaskNode> = z.lazy(() =>
   z.object({
@@ -32,33 +33,16 @@ const plannedTaskSchema: z.ZodType<PlannedTaskNode> = z.lazy(() =>
   }),
 );
 
-export const agentDecisionSchema: z.ZodType<AgentDecision> =
-  z.discriminatedUnion("action", [
-    z.object({
-      action: z.literal("ask_clarification"),
-      question: z.string().trim().min(1).max(500),
-    }),
-    z.object({
-      action: z.literal("create_task_tree"),
-      tasks: z.array(plannedTaskSchema).min(1),
-    }),
-  ]);
-
-/** OpenAI structured outputs reject a root `oneOf`; inactive branches stay nullable on the provider wire. */
-export const agentDecisionOutputSchema = z.object({
-  action: z.enum(["ask_clarification", "create_task_tree"]),
-  question: z.string().trim().min(1).max(500).nullable(),
-  tasks: z.array(plannedTaskSchema).min(1).nullable(),
+export const agentDecisionSchema: z.ZodType<AgentDecision> = z.object({
+  action: z.literal("create_task_tree"),
+  tasks: z.array(plannedTaskSchema).min(1),
 });
+
+export const agentDecisionOutputSchema = agentDecisionSchema;
 
 export function normalizeAgentDecisionOutput(value: unknown): AgentDecision {
   const parsed = agentDecisionOutputSchema.parse(value);
-  return parsed.action === "ask_clarification"
-    ? validateAgentDecision({
-        action: parsed.action,
-        question: parsed.question,
-      })
-    : validateAgentDecision({ action: parsed.action, tasks: parsed.tasks });
+  return validateAgentDecision(parsed);
 }
 
 export class AgentDecisionValidationError extends Error {}
@@ -71,8 +55,6 @@ export function validateAgentDecision(
   if (!parsed.success) {
     throw new AgentDecisionValidationError("Agent decision is malformed.");
   }
-  if (parsed.data.action === "ask_clarification") return parsed.data;
-
   let nodeCount = 0;
   const visit = (nodes: PlannedTaskNode[], depth: number): void => {
     if (depth > limits.maxDepth) {

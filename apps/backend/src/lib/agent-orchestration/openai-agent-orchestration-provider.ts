@@ -70,14 +70,11 @@ export class OpenAiAgentOrchestrationProvider implements AgentOrchestrationProvi
           }),
           submitDecision: tool({
             description:
-              "Submit the final clarification or task-tree decision after skill discovery.",
+              "Submit the final task-tree decision after skill discovery.",
             inputSchema: agentDecisionOutputSchema,
             execute: (input) => {
               const submittedDecision = normalizeAgentDecisionOutput(input);
-              if (
-                submittedDecision.action === "create_task_tree" &&
-                !skillCatalogListed
-              ) {
+              if (!skillCatalogListed) {
                 throw new AgentOrchestrationProviderError(
                   "Agent attempted creation without listing the skill catalog.",
                 );

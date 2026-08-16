@@ -19,11 +19,6 @@ export interface AgentTaskStaffingGap {
   unmatchedSkillRequirements?: string[];
 }
 
-export interface AgentTaskClarificationResponse {
-  status: "needs_clarification";
-  question: string;
-}
-
 export interface AgentTaskCreatedResponse {
   status: "created";
   message: string;
@@ -31,6 +26,4 @@ export interface AgentTaskCreatedResponse {
   staffingGaps: AgentTaskStaffingGap[];
 }
 
-export type AgentTaskResponse =
-  | AgentTaskClarificationResponse
-  | AgentTaskCreatedResponse;
+export type AgentTaskResponse = AgentTaskCreatedResponse;

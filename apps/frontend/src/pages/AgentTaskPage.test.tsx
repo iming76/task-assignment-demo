@@ -46,35 +46,30 @@ describe("AgentTaskPage", () => {
     ).not.toBeInTheDocument();
   });
 
-  it("preserves repeated clarification turns and sends the full conversation", async () => {
-    const responses: MockResponse[] = [
-      {
-        status: 200,
-        body: { status: "needs_clarification", question: "Which fields?" },
+  it("sends the conversation to the orchestration endpoint", async () => {
+    mockOrchestration(() => ({
+      status: 201,
+      body: {
+        status: "created",
+        message: "Created 1 task.",
+        tasks: [],
+        staffingGaps: [],
       },
-      {
-        status: 200,
-        body: {
-          status: "needs_clarification",
-          question: "Which image formats?",
-        },
-      },
-    ];
-    mockOrchestration(() => responses.shift()!);
+    }));
     const user = userEvent.setup();
     renderWithQueryClient(<AgentTaskPage />);
 
     await submit(user, "Update user profiles.");
-    expect(await screen.findByText("Which fields?")).toBeInTheDocument();
-    await submit(user, "Name and biography.");
-    expect(await screen.findByText("Which image formats?")).toBeInTheDocument();
+    expect(await screen.findByText("Tasks created")).toBeInTheDocument();
 
-    const secondCall = vi.mocked(fetch).mock.calls[1];
-    expect(secondCall?.[0]).toBe(`${DEFAULT_API_BASE_URL}/agent-task`);
-    expect(JSON.parse(secondCall?.[1]?.body as string).messages).toEqual([
+    const agentTaskCall = vi
+      .mocked(fetch)
+      .mock.calls.find(
+        (call) => call[0] === `${DEFAULT_API_BASE_URL}/agent-task`,
+      );
+    expect(agentTaskCall).toBeDefined();
+    expect(JSON.parse(agentTaskCall?.[1]?.body as string).messages).toEqual([
       { role: "user", content: "Update user profiles." },
-      { role: "assistant", content: "Which fields?" },
-      { role: "user", content: "Name and biography." },
     ]);
   });
 

@@ -133,28 +133,6 @@ describe("agent orchestration api", () => {
   });
   afterAll(resetDatabase);
 
-  it("returns clarification without writing tasks", async () => {
-    const provider = new FakeAgentOrchestrationProvider(async () => ({
-      decision: {
-        action: "ask_clarification",
-        question: "Which profile fields?",
-      },
-      skillCatalogListed: false,
-    }));
-    const app = buildTestApp({ provider });
-    const response = await app.inject({
-      method: "POST",
-      url: "/agent-task",
-      payload: { messages: [{ role: "user", content: "Update profiles." }] },
-    });
-    expect(response.statusCode).toBe(200);
-    expect(response.json()).toEqual({
-      status: "needs_clarification",
-      question: "Which profile fields?",
-    });
-    expect(await prisma.task.count()).toBe(0);
-  });
-
   it("creates a recursive tree and assigns by exact skills and workload", async () => {
     await prisma.task.create({
       data: {

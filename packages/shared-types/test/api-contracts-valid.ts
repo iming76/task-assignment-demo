@@ -34,10 +34,6 @@ export const createSkill: CreateSkillInput = {
 export const agentTaskRequest: AgentTaskRequest = {
   messages: [{ role: "user", content: "Build a task assignment system." }],
 };
-export const clarificationResponse: AgentTaskResponse = {
-  status: "needs_clarification",
-  question: "Which platforms must be supported?",
-};
 export const createdResponse: AgentTaskResponse = {
   status: "created",
   message: "Task created; an AI Engineer is still required.",

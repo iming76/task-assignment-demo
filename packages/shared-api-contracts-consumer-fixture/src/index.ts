@@ -31,8 +31,10 @@ const agentTaskRequest: AgentTaskRequest = {
   messages: [{ role: "user", content: "Build a task assignment system." }],
 };
 const agentTaskResponse: AgentTaskResponse = {
-  status: "needs_clarification",
-  question: "Which platforms are required?",
+  status: "created",
+  message: "Created 1 task.",
+  tasks: [],
+  staffingGaps: [],
 };
 const taskListResponse: TaskListResponse = [];
 const errorResponse: ApiErrorResponse = {

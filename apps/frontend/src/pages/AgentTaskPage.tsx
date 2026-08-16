@@ -41,7 +41,6 @@ export function AgentTaskPage() {
     assigneeId;
   const [messages, setMessages] = useState<AgentTaskMessage[]>([]);
   const [input, setInput] = useState("");
-  const [question, setQuestion] = useState<string | null>(null);
   const [created, setCreated] = useState<AgentTaskCreatedResponse | null>(null);
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -57,16 +56,7 @@ export function AgentTaskPage() {
       {
         onSuccess: (response) => {
           setInput("");
-          if (response.status === "needs_clarification") {
-            setMessages([
-              ...nextMessages,
-              { role: "assistant", content: response.question },
-            ]);
-            setQuestion(response.question);
-            return;
-          }
           setMessages(nextMessages);
-          setQuestion(null);
           setCreated(response);
         },
       },
@@ -76,7 +66,6 @@ export function AgentTaskPage() {
   function startOver() {
     setMessages([]);
     setInput("");
-    setQuestion(null);
     setCreated(null);
     orchestrate.reset();
   }
@@ -152,18 +141,10 @@ export function AgentTaskPage() {
           <CardTitle>Agent-assisted task creation</CardTitle>
         </CardHeader>
         <CardContent>
-          {question ? (
-            <div className="mb-4 rounded-md border bg-muted/40 p-3">
-              <p className="text-sm font-medium">
-                The agent needs more information:
-              </p>
-              <p className="mt-1 text-sm">{question}</p>
-            </div>
-          ) : null}
           <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
             <Field>
               <FieldLabel htmlFor="agent-input">
-                {question ? "Your answer" : "Describe the work you need done"}
+                Describe the work you need done
               </FieldLabel>
               <textarea
                 id="agent-input"
@@ -179,11 +160,7 @@ export function AgentTaskPage() {
               </FieldError>
             ) : null}
             <Button type="submit" disabled={orchestrate.isPending}>
-              {orchestrate.isPending
-                ? "Planning…"
-                : question
-                  ? "Send answer"
-                  : "Create tasks"}
+              {orchestrate.isPending ? "Planning…" : "Create tasks"}
             </Button>
           </form>
         </CardContent>

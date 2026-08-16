@@ -25,16 +25,6 @@ export const agentTaskRequestSchema: JsonSchema = {
   },
 };
 
-export const agentTaskClarificationResponseSchema: JsonSchema = {
-  type: "object",
-  required: ["status", "question"],
-  additionalProperties: false,
-  properties: {
-    status: { const: "needs_clarification" },
-    question: { type: "string" },
-  },
-};
-
 const staffingGapSchema: JsonSchema = {
   type: "object",
   required: ["taskId", "taskTitle", "requiredRole", "requiredSkillIds"],

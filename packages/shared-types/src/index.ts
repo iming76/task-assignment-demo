@@ -1,5 +1,4 @@
 export type {
-  AgentTaskClarificationResponse,
   AgentTaskCreatedResponse,
   AgentTaskMessage,
   AgentTaskMessageRole,

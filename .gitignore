@@ -40,3 +40,6 @@ yarn-error.log*
 
 # OpenSpec
 openspec/changes
+
+# Prisma generated client
+apps/backend/src/generated

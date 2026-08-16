@@ -1,4 +1,4 @@
-import type { FastifyReply, FastifyRequest } from "fastify";
+import type { FastifyRequest } from "fastify";
 import type { RouteHandler } from "../handler-types.js";
 import type { CategoryService } from "../../services/category-service.js";
 
@@ -16,11 +16,11 @@ export function createCategoryHandlers(
   service: CategoryService,
 ): CategoryHandlers {
   return {
-    async listCategories(request: FastifyRequest, reply: FastifyReply) {
+    async listCategories() {
       return service.list();
     },
 
-    async getCategory(request: FastifyRequest, reply: FastifyReply) {
+    async getCategory(request: FastifyRequest) {
       const { id } = request.params as { id: string };
       return service.get(id);
     },

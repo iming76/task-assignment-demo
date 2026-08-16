@@ -18,11 +18,11 @@ export interface SkillHandlers {
  */
 export function createSkillHandlers(service: SkillService): SkillHandlers {
   return {
-    async listSkills(request: FastifyRequest, reply: FastifyReply) {
+    async listSkills() {
       return service.list();
     },
 
-    async getSkill(request: FastifyRequest, reply: FastifyReply) {
+    async getSkill(request: FastifyRequest) {
       const { id } = request.params as { id: string };
       return service.get(id);
     },
@@ -33,7 +33,7 @@ export function createSkillHandlers(service: SkillService): SkillHandlers {
       return skill;
     },
 
-    async updateSkill(request: FastifyRequest, reply: FastifyReply) {
+    async updateSkill(request: FastifyRequest) {
       const { id } = request.params as { id: string };
       return service.update(id, request.body as PatchSkillInput);
     },

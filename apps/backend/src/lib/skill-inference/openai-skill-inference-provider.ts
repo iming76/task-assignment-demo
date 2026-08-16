@@ -27,7 +27,7 @@ export function isSupportedSkillInferenceProvider(
 
 /**
  * Structured-output generation via the AI SDK's Output.object, mirroring
- * ../task-planning/openai-task-planning-provider.ts. The catalog constrains
+ * ../agent-orchestration/openai-agent-orchestration-provider.ts. The catalog constrains
  * the prompt, not the schema -- SkillInferenceService still re-validates
  * every id against the current catalog before trusting it.
  */

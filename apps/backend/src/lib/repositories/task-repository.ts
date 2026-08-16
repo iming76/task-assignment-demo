@@ -8,7 +8,7 @@ export interface CreateTaskRecord {
   requiredSkillIds: string[];
   parentTaskId: string | null;
   depth: number;
-  /** Omitted by the regular create flow; set by agent-plan apply to persist a reviewed assignment atomically. */
+  /** Omitted by regular creation; set by agent orchestration inside its transaction. */
   assigneeId?: string | null;
 }
 
@@ -28,6 +28,9 @@ export interface TaskRepository {
     tx?: TransactionClient,
   ): Promise<Task>;
   delete(id: string, tx?: TransactionClient): Promise<void>;
+  countActiveAssignmentsByDeveloper(
+    tx: TransactionClient,
+  ): Promise<Map<string, number>>;
   /** All ancestor ids from immediate parent to root, cycle-safe, unlocked. */
   findAncestorIds(id: string, tx: TransactionClient): Promise<string[]>;
   /** All descendant ids at any depth, cycle-safe, unlocked. */
@@ -78,7 +81,7 @@ export class PrismaTaskRepository implements TaskRepository {
       include: { requiredSkills: { select: { skillId: true } } },
       orderBy: { id: "asc" },
     });
-    return Promise.all(tasks.map((t) => flattenTask(t as any)));
+    return Promise.all(tasks.map((task) => flattenTask(task)));
   }
 
   async findById(id: string, tx?: TransactionClient): Promise<Task | null> {
@@ -88,7 +91,7 @@ export class PrismaTaskRepository implements TaskRepository {
       include: { requiredSkills: { select: { skillId: true } } },
     });
     if (!task) return null;
-    return flattenTask(task as any);
+    return flattenTask(task);
   }
 
   async hasChildren(id: string, tx?: TransactionClient): Promise<boolean> {
@@ -115,7 +118,7 @@ export class PrismaTaskRepository implements TaskRepository {
       },
       include: { requiredSkills: { select: { skillId: true } } },
     });
-    return flattenTask(task as any);
+    return flattenTask(task);
   }
 
   async update(
@@ -141,12 +144,29 @@ export class PrismaTaskRepository implements TaskRepository {
       },
       include: { requiredSkills: { select: { skillId: true } } },
     });
-    return flattenTask(task as any);
+    return flattenTask(task);
   }
 
   async delete(id: string, tx?: TransactionClient): Promise<void> {
     const client = tx ?? this.client;
     await client.task.delete({ where: { id } });
+  }
+
+  async countActiveAssignmentsByDeveloper(
+    tx: TransactionClient,
+  ): Promise<Map<string, number>> {
+    const groups = await tx.task.groupBy({
+      by: ["assigneeId"],
+      where: { assigneeId: { not: null }, status: { not: "DONE" } },
+      _count: { _all: true },
+    });
+    return new Map(
+      groups.flatMap((group) =>
+        group.assigneeId === null
+          ? []
+          : [[group.assigneeId, group._count._all] as const],
+      ),
+    );
   }
 
   async findAncestorIds(id: string, tx: TransactionClient): Promise<string[]> {

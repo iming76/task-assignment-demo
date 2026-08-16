@@ -5,11 +5,13 @@
     "NODE_ENV",
     "DATABASE_URL",
     "PORT",
+    "FRONTEND_URL",
     "VITE_API_BASE_URL",
     "AI_PROVIDER",
     "OPENAI_API_KEY",
     "OPENAI_MODEL",
-    "AGENT_PLANNING_TIMEOUT_MS"
+    "AGENT_PLANNING_TIMEOUT_MS",
+    "SKILL_INFERENCE_TIMEOUT_MS"
   ],
   "tasks": {
     "build": {

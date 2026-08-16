@@ -1,7 +1,7 @@
 export interface AgentPlanningConfig {
   /** Selects the provider adapter; only "openai" resolves to a real endpoint today. */
   provider: string;
-  /** null when no key is configured; propose then fails safely with AGENT_UNAVAILABLE. */
+  /** null when no key is configured; orchestration fails safely with AGENT_UNAVAILABLE. */
   apiKey: string | null;
   model: string;
   timeoutMs: number;
@@ -19,6 +19,7 @@ export interface SkillInferenceConfig {
 export interface Env {
   port: number;
   nodeEnv: string;
+  corsOrigin: string;
   agentPlanning: AgentPlanningConfig;
   skillInference: SkillInferenceConfig;
 }
@@ -36,6 +37,7 @@ export function loadEnv(): Env {
   return {
     port: Number.isNaN(parsedPort) ? 3100 : parsedPort,
     nodeEnv: process.env.NODE_ENV ?? "development",
+    corsOrigin: process.env.FRONTEND_URL ?? "http://localhost:3000",
     agentPlanning: {
       provider: process.env.AI_PROVIDER ?? "openai",
       apiKey: process.env.OPENAI_API_KEY || null,

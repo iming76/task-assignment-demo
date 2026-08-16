@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.42",
+    "@fastify/cors": "^11.3.0",
     "@prisma/adapter-pg": "7.9.1",
     "@prisma/client": "7.9.1",
     "@repo/shared-types": "workspace:*",

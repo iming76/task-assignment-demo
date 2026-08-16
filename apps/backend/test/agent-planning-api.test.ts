@@ -1,5 +1,8 @@
-import { describe, it, expect, beforeEach, afterAll } from "vitest";
-import type { ApiErrorResponse, Task } from "@repo/shared-types";
+import { afterAll, beforeEach, describe, expect, it } from "vitest";
+import type {
+  AgentTaskCreatedResponse,
+  ApiErrorResponse,
+} from "@repo/shared-types";
 import { buildApp } from "../src/app.js";
 import { prisma } from "../src/lib/prisma.js";
 import {
@@ -7,27 +10,29 @@ import {
   type CreateTaskRecord,
   type TaskRepository,
 } from "../src/lib/repositories/task-repository.js";
-import { createTaskService } from "../src/services/task-service.js";
 import { PrismaDeveloperRepository } from "../src/lib/repositories/developer-repository.js";
-import { createDeveloperService } from "../src/services/developer-service.js";
 import { PrismaSkillRepository } from "../src/lib/repositories/skill-repository.js";
-import { createSkillService } from "../src/services/skill-service.js";
 import { PrismaCategoryRepository } from "../src/lib/repositories/category-repository.js";
+import {
+  PrismaTransactionRunner,
+  type TransactionClient,
+} from "../src/lib/transaction.js";
+import { createTaskService } from "../src/services/task-service.js";
+import { createDeveloperService } from "../src/services/developer-service.js";
+import { createSkillService } from "../src/services/skill-service.js";
 import { createCategoryService } from "../src/services/category-service.js";
 import { createHealthService } from "../src/services/health-service.js";
-import { PrismaTransactionRunner } from "../src/lib/transaction.js";
-import type { TransactionClient } from "../src/lib/transaction.js";
-import type { PatchTaskInput } from "@repo/shared-types";
-import { FakeHealthRepository } from "./lib/fake-health-repository.js";
-import { FakeTaskPlanningProvider } from "./lib/fake-task-planning-provider.js";
 import { createAgentTaskService } from "../src/services/agent-task-service.js";
 import {
-  NotConfiguredTaskPlanningProvider,
-  TaskPlanningProviderError,
-  type TaskPlanningProvider,
-} from "../src/lib/task-planning/task-planning-provider.js";
+  AgentOrchestrationProviderError,
+  NotConfiguredAgentOrchestrationProvider,
+  type AgentOrchestrationProvider,
+} from "../src/lib/agent-orchestration/agent-orchestration-provider.js";
+import { FakeHealthRepository } from "./lib/fake-health-repository.js";
+import { FakeAgentOrchestrationProvider } from "./lib/fake-agent-orchestration-provider.js";
 import { seedApplicationData } from "../prisma/seed.js";
 import { applicationSeedIds } from "../prisma/seed-ids.js";
+import type { PatchTaskInput } from "@repo/shared-types";
 
 async function resetDatabase(): Promise<void> {
   await prisma.$executeRawUnsafe(
@@ -35,9 +40,21 @@ async function resetDatabase(): Promise<void> {
   );
 }
 
+function node(overrides: Record<string, unknown> = {}) {
+  return {
+    title: "Root task",
+    description: "Create the requested feature.",
+    requiredSkillIds: [applicationSeedIds.skills.react],
+    requiredRole: "Frontend Engineer",
+    unmatchedSkillRequirements: [],
+    subtasks: [],
+    ...overrides,
+  };
+}
+
 function buildTestApp(
   options: {
-    provider?: TaskPlanningProvider;
+    provider?: AgentOrchestrationProvider;
     taskRepository?: TaskRepository;
   } = {},
 ) {
@@ -45,8 +62,6 @@ function buildTestApp(
   const skillRepository = new PrismaSkillRepository(prisma);
   const taskRepository =
     options.taskRepository ?? new PrismaTaskRepository(prisma);
-  const provider = options.provider ?? new NotConfiguredTaskPlanningProvider();
-
   return buildApp(
     {
       healthService: createHealthService(new FakeHealthRepository()),
@@ -62,7 +77,7 @@ function buildTestApp(
         new PrismaCategoryRepository(prisma),
       ),
       agentTaskService: createAgentTaskService(
-        provider,
+        options.provider ?? new NotConfiguredAgentOrchestrationProvider(),
         skillRepository,
         developerRepository,
         taskRepository,
@@ -73,382 +88,278 @@ function buildTestApp(
   );
 }
 
-/** Delegates to a real repository but forces `create` to fail for one title, to prove apply rolls back atomically. */
 class FailOnTitleTaskRepository implements TaskRepository {
   constructor(
     private readonly inner: TaskRepository,
-    private readonly failTitle: string,
+    private readonly title: string,
   ) {}
-
   list() {
     return this.inner.list();
   }
-
   findById(id: string, tx?: TransactionClient) {
     return this.inner.findById(id, tx);
   }
-
   hasChildren(id: string, tx?: TransactionClient) {
     return this.inner.hasChildren(id, tx);
   }
-
-  async create(input: CreateTaskRecord, tx?: TransactionClient) {
-    if (input.title === this.failTitle) {
-      throw new Error("forced failure for rollback test");
-    }
+  create(input: CreateTaskRecord, tx?: TransactionClient) {
+    if (input.title === this.title) throw new Error("forced write failure");
     return this.inner.create(input, tx);
   }
-
   update(id: string, input: PatchTaskInput, tx?: TransactionClient) {
     return this.inner.update(id, input, tx);
   }
-
   delete(id: string, tx?: TransactionClient) {
     return this.inner.delete(id, tx);
   }
+  countActiveAssignmentsByDeveloper(tx: TransactionClient) {
+    return this.inner.countActiveAssignmentsByDeveloper(tx);
+  }
+  findAncestorIds(id: string, tx: TransactionClient) {
+    return this.inner.findAncestorIds(id, tx);
+  }
+  findDescendantIds(id: string, tx: TransactionClient) {
+    return this.inner.findDescendantIds(id, tx);
+  }
+  lockAndGetStatuses(ids: string[], tx: TransactionClient) {
+    return this.inner.lockAndGetStatuses(ids, tx);
+  }
 }
 
-const unknownId = "00000000-0000-4000-8000-999999999999";
-
-describe("agent planning api", () => {
+describe("agent orchestration api", () => {
   beforeEach(async () => {
     await resetDatabase();
     await seedApplicationData(prisma);
   });
+  afterAll(resetDatabase);
 
-  afterAll(async () => {
-    await resetDatabase();
+  it("returns clarification without writing tasks", async () => {
+    const provider = new FakeAgentOrchestrationProvider(async () => ({
+      decision: {
+        action: "ask_clarification",
+        question: "Which profile fields?",
+      },
+      skillCatalogListed: false,
+    }));
+    const app = buildTestApp({ provider });
+    const response = await app.inject({
+      method: "POST",
+      url: "/agent-task",
+      payload: { messages: [{ role: "user", content: "Update profiles." }] },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toEqual({
+      status: "needs_clarification",
+      question: "Which profile fields?",
+    });
+    expect(await prisma.task.count()).toBe(0);
   });
 
-  describe("POST /agent-task/proposals", () => {
-    it("returns a valid multi-root three-level draft without persisting anything", async () => {
-      const draft = [
-        {
-          name: "Root A",
-          description: "First root.",
-          requiredSkillIds: [
-            applicationSeedIds.skills.react,
-            applicationSeedIds.skills.typescript,
-          ],
-          assigneeId: applicationSeedIds.developers.adaLovelace,
-          subtasks: [
-            {
-              name: "Child A1",
-              description: "First child.",
-              requiredSkillIds: [],
-              subtasks: [
-                {
-                  name: "Grandchild A1a",
-                  description: "Deepest task.",
-                  requiredSkillIds: [],
-                  subtasks: [],
-                },
-              ],
-            },
-          ],
-        },
-        {
-          name: "Root B",
-          description: "Second root.",
-          requiredSkillIds: [],
-          subtasks: [],
-        },
-      ];
-      const app = buildTestApp({
-        provider: new FakeTaskPlanningProvider(async () => draft),
-      });
-      await app.ready();
-
-      const response = await app.inject({
-        method: "POST",
-        url: "/agent-task/proposals",
-        payload: { description: "Build a task assignment system." },
-      });
-
-      expect(response.statusCode).toBe(200);
-      const body = response.json() as {
-        tasks: Array<{
-          name: string;
-          assigneeId: string | null;
-          subtasks: Array<{ subtasks: Array<{ name: string }> }>;
-        }>;
-      };
-      expect(body.tasks).toHaveLength(2);
-      expect(body.tasks[0].name).toBe("Root A");
-      expect(body.tasks[0].assigneeId).toBe(
-        applicationSeedIds.developers.adaLovelace,
-      );
-      expect(body.tasks[0].subtasks[0].subtasks[0].name).toBe("Grandchild A1a");
-
-      const tasksResponse = await app.inject({ method: "GET", url: "/tasks" });
-      expect(tasksResponse.json()).toEqual([]);
+  it("creates a recursive tree and assigns by exact skills and workload", async () => {
+    await prisma.task.create({
+      data: {
+        title: "Ada's active work",
+        description: "Existing work",
+        assigneeId: applicationSeedIds.developers.adaLovelace,
+      },
     });
-
-    it("clears an assignee that does not cover the full required-skill set", async () => {
-      const draft = [
-        {
-          name: "Full-stack task",
-          description: "Needs Node.js and PostgreSQL.",
-          requiredSkillIds: [
-            applicationSeedIds.skills.nodejs,
-            applicationSeedIds.skills.postgresql,
-          ],
-          assigneeId: applicationSeedIds.developers.alanTuring,
-          subtasks: [],
-        },
-      ];
-      const app = buildTestApp({
-        provider: new FakeTaskPlanningProvider(async () => draft),
-      });
-      await app.ready();
-
-      const response = await app.inject({
-        method: "POST",
-        url: "/agent-task/proposals",
-        payload: { description: "..." },
-      });
-
-      expect(response.statusCode).toBe(200);
-      const body = response.json() as {
-        tasks: Array<{ assigneeId: string | null }>;
-      };
-      expect(body.tasks[0].assigneeId).toBeNull();
+    const provider = new FakeAgentOrchestrationProvider(async () => ({
+      decision: {
+        action: "create_task_tree",
+        tasks: [
+          node({
+            subtasks: [node({ title: "Child task", requiredSkillIds: [] })],
+          }),
+        ],
+      },
+      skillCatalogListed: true,
+    }));
+    const app = buildTestApp({ provider });
+    const response = await app.inject({
+      method: "POST",
+      url: "/agent-task",
+      payload: {
+        messages: [{ role: "user", content: "Build a React feature." }],
+      },
     });
-
-    it("returns AGENT_UNAVAILABLE when no provider is configured", async () => {
-      const app = buildTestApp();
-      await app.ready();
-
-      const response = await app.inject({
-        method: "POST",
-        url: "/agent-task/proposals",
-        payload: { description: "..." },
-      });
-
-      expect(response.statusCode).toBe(503);
-      expect((response.json() as ApiErrorResponse).error.code).toBe(
-        "AGENT_UNAVAILABLE",
-      );
-    });
-
-    it("returns AGENT_UNAVAILABLE when the provider times out", async () => {
-      const app = buildTestApp({
-        provider: new FakeTaskPlanningProvider(async () => {
-          throw new TaskPlanningProviderError(
-            "Agent planning provider timed out.",
-          );
-        }),
-      });
-      await app.ready();
-
-      const response = await app.inject({
-        method: "POST",
-        url: "/agent-task/proposals",
-        payload: { description: "..." },
-      });
-
-      expect(response.statusCode).toBe(503);
-      expect((response.json() as ApiErrorResponse).error.code).toBe(
-        "AGENT_UNAVAILABLE",
-      );
-    });
-
-    it("returns AGENT_UNAVAILABLE when the provider output is malformed", async () => {
-      const app = buildTestApp({
-        provider: new FakeTaskPlanningProvider(async () => ({
-          not: "a draft",
-        })),
-      });
-      await app.ready();
-
-      const response = await app.inject({
-        method: "POST",
-        url: "/agent-task/proposals",
-        payload: { description: "..." },
-      });
-
-      expect(response.statusCode).toBe(503);
-      expect((response.json() as ApiErrorResponse).error.code).toBe(
-        "AGENT_UNAVAILABLE",
-      );
-    });
-
-    it("returns AGENT_UNAVAILABLE when the draft references an unknown skill id", async () => {
-      const app = buildTestApp({
-        provider: new FakeTaskPlanningProvider(async () => [
-          {
-            name: "Task",
-            description: "Uses a skill id the catalog does not have.",
-            requiredSkillIds: [unknownId],
-            subtasks: [],
-          },
-        ]),
-      });
-      await app.ready();
-
-      const response = await app.inject({
-        method: "POST",
-        url: "/agent-task/proposals",
-        payload: { description: "..." },
-      });
-
-      expect(response.statusCode).toBe(503);
-      expect((response.json() as ApiErrorResponse).error.code).toBe(
-        "AGENT_UNAVAILABLE",
-      );
-    });
-
-    it("returns VALIDATION_ERROR for an empty description", async () => {
-      const app = buildTestApp();
-      await app.ready();
-
-      const response = await app.inject({
-        method: "POST",
-        url: "/agent-task/proposals",
-        payload: { description: "" },
-      });
-
-      expect(response.statusCode).toBe(400);
-      expect((response.json() as ApiErrorResponse).error.code).toBe(
-        "VALIDATION_ERROR",
-      );
-    });
+    expect(response.statusCode).toBe(201);
+    const body = response.json() as AgentTaskCreatedResponse;
+    expect(body.status).toBe("created");
+    expect(body.tasks).toHaveLength(2);
+    expect(body.tasks[0].assigneeId).toBe(
+      applicationSeedIds.developers.graceHopper,
+    );
+    expect(body.tasks[1].parentTaskId).toBe(body.tasks[0].id);
+    expect(body.staffingGaps).toEqual([]);
   });
 
-  describe("POST /agent-task/apply", () => {
-    function editedDraft(overrides: Record<string, unknown> = {}) {
-      return [
+  it("counts only active assigned tasks for workload ranking", async () => {
+    await prisma.task.createMany({
+      data: [
         {
-          name: "Root",
-          description: "Reviewed and edited root task.",
-          requiredSkillIds: [
-            applicationSeedIds.skills.react,
-            applicationSeedIds.skills.typescript,
-          ],
+          title: "Active Ada 1",
+          description: "Work",
           assigneeId: applicationSeedIds.developers.adaLovelace,
-          subtasks: [
-            {
-              name: "Child",
-              description: "Reviewed child task.",
-              requiredSkillIds: [],
-              subtasks: [],
-            },
-          ],
-          ...overrides,
         },
-      ];
-    }
-
-    it("creates the complete reviewed tree from edited input", async () => {
-      const app = buildTestApp();
-      await app.ready();
-
-      const response = await app.inject({
-        method: "POST",
-        url: "/agent-task/apply",
-        payload: { tasks: editedDraft() },
-      });
-
-      expect(response.statusCode).toBe(201);
-      const created = response.json() as Task[];
-      expect(created).toHaveLength(2);
-      const [root, child] = created;
-      expect(root.title).toBe("Root");
-      expect(root.parentTaskId).toBeNull();
-      expect(root.depth).toBe(1);
-      expect(root.assigneeId).toBe(applicationSeedIds.developers.adaLovelace);
-      expect(root.status).toBe("TODO");
-      expect(child.title).toBe("Child");
-      expect(child.parentTaskId).toBe(root.id);
-      expect(child.depth).toBe(2);
-
-      const tasksResponse = await app.inject({ method: "GET", url: "/tasks" });
-      expect((tasksResponse.json() as Task[]).length).toBe(2);
+        {
+          title: "Active Ada 2",
+          description: "Work",
+          assigneeId: applicationSeedIds.developers.adaLovelace,
+        },
+        {
+          title: "Done Grace",
+          description: "Work",
+          status: "DONE",
+          assigneeId: applicationSeedIds.developers.graceHopper,
+        },
+        { title: "Unassigned", description: "Work" },
+      ],
     });
+    const repository = new PrismaTaskRepository(prisma);
+    const counts = await prisma.$transaction((tx) =>
+      repository.countActiveAssignmentsByDeveloper(tx),
+    );
+    expect(counts).toEqual(
+      new Map([[applicationSeedIds.developers.adaLovelace, 2]]),
+    );
+  });
 
-    it("returns NOT_FOUND for a stale/unknown required skill id", async () => {
-      const app = buildTestApp();
-      await app.ready();
-
-      const response = await app.inject({
-        method: "POST",
-        url: "/agent-task/apply",
-        payload: {
-          tasks: editedDraft({
-            requiredSkillIds: [unknownId],
-            assigneeId: null,
+  it("creates unassigned AI work and reports the required role", async () => {
+    const aiSkillId = "a0000000-0000-4000-8000-000000000105";
+    await prisma.skill.create({
+      data: {
+        id: aiSkillId,
+        name: "Artificial Intelligence",
+        description: "Machine-learning systems.",
+        categoryId: applicationSeedIds.categories.backend,
+      },
+    });
+    const provider = new FakeAgentOrchestrationProvider(async () => ({
+      decision: {
+        action: "create_task_tree",
+        tasks: [
+          node({
+            title: "AI image moderation",
+            requiredSkillIds: [aiSkillId],
+            requiredRole: "AI Engineer",
           }),
-        },
-      });
-
-      expect(response.statusCode).toBe(404);
-      expect((response.json() as ApiErrorResponse).error.code).toBe(
-        "NOT_FOUND",
-      );
-
-      const tasksResponse = await app.inject({ method: "GET", url: "/tasks" });
-      expect(tasksResponse.json()).toEqual([]);
+        ],
+      },
+      skillCatalogListed: true,
+    }));
+    const response = await buildTestApp({ provider }).inject({
+      method: "POST",
+      url: "/agent-task",
+      payload: {
+        messages: [
+          { role: "user", content: "Moderate profile images with AI." },
+        ],
+      },
     });
-
-    it("returns NOT_FOUND for a stale/unknown assignee id", async () => {
-      const app = buildTestApp();
-      await app.ready();
-
-      const response = await app.inject({
-        method: "POST",
-        url: "/agent-task/apply",
-        payload: { tasks: editedDraft({ assigneeId: unknownId }) },
-      });
-
-      expect(response.statusCode).toBe(404);
-      expect((response.json() as ApiErrorResponse).error.code).toBe(
-        "NOT_FOUND",
-      );
+    expect(response.statusCode).toBe(201);
+    const body = response.json() as AgentTaskCreatedResponse;
+    expect(body.tasks[0].assigneeId).toBeNull();
+    expect(body.staffingGaps[0]).toMatchObject({
+      taskTitle: "AI image moderation",
+      requiredRole: "AI Engineer",
+      requiredSkillIds: [aiSkillId],
     });
+    expect(body.message).toContain("requires AI Engineer");
+  });
 
-    it("returns SKILL_MISMATCH when the assignee does not cover required skills", async () => {
-      const app = buildTestApp();
-      await app.ready();
-
-      const response = await app.inject({
-        method: "POST",
-        url: "/agent-task/apply",
-        payload: {
-          tasks: editedDraft({
-            requiredSkillIds: [applicationSeedIds.skills.postgresql],
-            assigneeId: applicationSeedIds.developers.alanTuring,
-          }),
-        },
-      });
-
-      expect(response.statusCode).toBe(409);
-      expect((response.json() as ApiErrorResponse).error.code).toBe(
-        "SKILL_MISMATCH",
-      );
-
-      const tasksResponse = await app.inject({ method: "GET", url: "/tasks" });
-      expect(tasksResponse.json()).toEqual([]);
+  it("rejects creation without catalog inspection", async () => {
+    const provider = new FakeAgentOrchestrationProvider(async () => ({
+      decision: { action: "create_task_tree", tasks: [node()] },
+      skillCatalogListed: false,
+    }));
+    const response = await buildTestApp({ provider }).inject({
+      method: "POST",
+      url: "/agent-task",
+      payload: { messages: [{ role: "user", content: "Build React." }] },
     });
+    expect(response.statusCode).toBe(503);
+    expect(await prisma.task.count()).toBe(0);
+  });
 
-    it("rolls back the entire tree when a write fails partway through", async () => {
-      const app = buildTestApp({
-        taskRepository: new FailOnTitleTaskRepository(
-          new PrismaTaskRepository(prisma),
-          "Child",
-        ),
-      });
-      await app.ready();
-
-      const response = await app.inject({
-        method: "POST",
-        url: "/agent-task/apply",
-        payload: { tasks: editedDraft() },
-      });
-
-      expect(response.statusCode).toBe(500);
-
-      const tasksResponse = await app.inject({ method: "GET", url: "/tasks" });
-      expect(tasksResponse.json()).toEqual([]);
+  it("rejects unknown skill ids and rolls back failed trees", async () => {
+    const invalidProvider = new FakeAgentOrchestrationProvider(async () => ({
+      decision: {
+        action: "create_task_tree",
+        tasks: [node({ requiredSkillIds: ["unknown-skill"] })],
+      },
+      skillCatalogListed: true,
+    }));
+    const invalidResponse = await buildTestApp({
+      provider: invalidProvider,
+    }).inject({
+      method: "POST",
+      url: "/agent-task",
+      payload: { messages: [{ role: "user", content: "Build React." }] },
     });
+    expect(invalidResponse.statusCode).toBe(503);
+    expect(await prisma.task.count()).toBe(0);
+
+    const provider = new FakeAgentOrchestrationProvider(async () => ({
+      decision: {
+        action: "create_task_tree",
+        tasks: [node({ subtasks: [node({ title: "Fail child" })] })],
+      },
+      skillCatalogListed: true,
+    }));
+    const failingRepository = new FailOnTitleTaskRepository(
+      new PrismaTaskRepository(prisma),
+      "Fail child",
+    );
+    const failedResponse = await buildTestApp({
+      provider,
+      taskRepository: failingRepository,
+    }).inject({
+      method: "POST",
+      url: "/agent-task",
+      payload: { messages: [{ role: "user", content: "Build React." }] },
+    });
+    expect(failedResponse.statusCode).toBe(500);
+    expect(await prisma.task.count()).toBe(0);
+  });
+
+  it("validates conversations, maps provider failure, and removes legacy routes", async () => {
+    const app = buildTestApp({
+      provider: new FakeAgentOrchestrationProvider(async () => {
+        throw new AgentOrchestrationProviderError("timeout");
+      }),
+    });
+    const invalid = await app.inject({
+      method: "POST",
+      url: "/agent-task",
+      payload: { messages: [] },
+    });
+    expect(invalid.statusCode).toBe(400);
+    const unavailable = await app.inject({
+      method: "POST",
+      url: "/agent-task",
+      payload: { messages: [{ role: "user", content: "Build it." }] },
+    });
+    expect(unavailable.statusCode).toBe(503);
+    expect((unavailable.json() as ApiErrorResponse).error.code).toBe(
+      "AGENT_UNAVAILABLE",
+    );
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/agent-task/proposals",
+          payload: {},
+        })
+      ).statusCode,
+    ).toBe(404);
+    expect(
+      (
+        await app.inject({
+          method: "POST",
+          url: "/agent-task/apply",
+          payload: {},
+        })
+      ).statusCode,
+    ).toBe(404);
   });
 });

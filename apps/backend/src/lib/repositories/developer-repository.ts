@@ -13,7 +13,7 @@ import { translateKnownPrismaError } from "../prisma-error.js";
  * return the flattened public `Developer` shape (skills as `skillIds`).
  */
 export interface DeveloperRepository {
-  list(): Promise<Developer[]>;
+  list(tx?: TransactionClient): Promise<Developer[]>;
   findById(id: string, tx?: TransactionClient): Promise<Developer | null>;
   create(
     input: CreateDeveloperInput,
@@ -46,12 +46,15 @@ async function flattenDeveloper(developerRecord: {
 export class PrismaDeveloperRepository implements DeveloperRepository {
   constructor(private readonly client: PrismaClient) {}
 
-  async list(): Promise<Developer[]> {
-    const developers = await this.client.developer.findMany({
+  async list(tx?: TransactionClient): Promise<Developer[]> {
+    const client = tx ?? this.client;
+    const developers = await client.developer.findMany({
       include: { skills: { select: { skillId: true } } },
       orderBy: { id: "asc" },
     });
-    return Promise.all(developers.map((d) => flattenDeveloper(d as any)));
+    return Promise.all(
+      developers.map((developer) => flattenDeveloper(developer)),
+    );
   }
 
   async findById(
@@ -64,7 +67,7 @@ export class PrismaDeveloperRepository implements DeveloperRepository {
       include: { skills: { select: { skillId: true } } },
     });
     if (!developer) return null;
-    return flattenDeveloper(developer as any);
+    return flattenDeveloper(developer);
   }
 
   async create(
@@ -82,7 +85,7 @@ export class PrismaDeveloperRepository implements DeveloperRepository {
         },
         include: { skills: { select: { skillId: true } } },
       });
-      return flattenDeveloper(developer as any);
+      return flattenDeveloper(developer);
     };
 
     try {
@@ -116,7 +119,7 @@ export class PrismaDeveloperRepository implements DeveloperRepository {
         },
         include: { skills: { select: { skillId: true } } },
       });
-      return flattenDeveloper(developer as any);
+      return flattenDeveloper(developer);
     };
 
     try {

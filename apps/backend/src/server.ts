@@ -15,13 +15,13 @@ import { createCategoryService } from "./services/category-service.js";
 import { PrismaTransactionRunner } from "./lib/transaction.js";
 import { createAgentTaskService } from "./services/agent-task-service.js";
 import {
-  NotConfiguredTaskPlanningProvider,
-  type TaskPlanningProvider,
-} from "./lib/task-planning/task-planning-provider.js";
+  NotConfiguredAgentOrchestrationProvider,
+  type AgentOrchestrationProvider,
+} from "./lib/agent-orchestration/agent-orchestration-provider.js";
 import {
-  OpenAiTaskPlanningProvider,
-  isSupportedTaskPlanningProvider,
-} from "./lib/task-planning/openai-task-planning-provider.js";
+  OpenAiAgentOrchestrationProvider,
+  isSupportedAgentOrchestrationProvider,
+} from "./lib/agent-orchestration/openai-agent-orchestration-provider.js";
 import {
   NotConfiguredSkillInferenceProvider,
   type SkillInferenceProvider,
@@ -38,15 +38,15 @@ const developerRepository = new PrismaDeveloperRepository(prisma);
 const skillRepository = new PrismaSkillRepository(prisma);
 const taskRepository = new PrismaTaskRepository(prisma);
 
-const taskPlanningProvider: TaskPlanningProvider =
+const agentOrchestrationProvider: AgentOrchestrationProvider =
   env.agentPlanning.apiKey &&
-  isSupportedTaskPlanningProvider(env.agentPlanning.provider)
-    ? new OpenAiTaskPlanningProvider({
+  isSupportedAgentOrchestrationProvider(env.agentPlanning.provider)
+    ? new OpenAiAgentOrchestrationProvider({
         apiKey: env.agentPlanning.apiKey,
         model: env.agentPlanning.model,
         timeoutMs: env.agentPlanning.timeoutMs,
       })
-    : new NotConfiguredTaskPlanningProvider();
+    : new NotConfiguredAgentOrchestrationProvider();
 
 const skillInferenceProvider: SkillInferenceProvider =
   env.skillInference.apiKey &&
@@ -58,26 +58,31 @@ const skillInferenceProvider: SkillInferenceProvider =
       })
     : new NotConfiguredSkillInferenceProvider();
 
-const app = buildApp({
-  healthService: createHealthService(new PrismaHealthRepository(prisma)),
-  taskService: createTaskService(
-    taskRepository,
-    developerRepository,
-    skillRepository,
-    new PrismaTransactionRunner(prisma),
-    new DefaultSkillInferenceService(skillInferenceProvider, skillRepository),
-  ),
-  developerService: createDeveloperService(developerRepository),
-  skillService: createSkillService(skillRepository),
-  categoryService: createCategoryService(new PrismaCategoryRepository(prisma)),
-  agentTaskService: createAgentTaskService(
-    taskPlanningProvider,
-    skillRepository,
-    developerRepository,
-    taskRepository,
-    new PrismaTransactionRunner(prisma),
-  ),
-});
+const app = buildApp(
+  {
+    healthService: createHealthService(new PrismaHealthRepository(prisma)),
+    taskService: createTaskService(
+      taskRepository,
+      developerRepository,
+      skillRepository,
+      new PrismaTransactionRunner(prisma),
+      new DefaultSkillInferenceService(skillInferenceProvider, skillRepository),
+    ),
+    developerService: createDeveloperService(developerRepository),
+    skillService: createSkillService(skillRepository),
+    categoryService: createCategoryService(
+      new PrismaCategoryRepository(prisma),
+    ),
+    agentTaskService: createAgentTaskService(
+      agentOrchestrationProvider,
+      skillRepository,
+      developerRepository,
+      taskRepository,
+      new PrismaTransactionRunner(prisma),
+    ),
+  },
+  { corsOrigin: env.corsOrigin },
+);
 
 async function shutdown(): Promise<void> {
   await app.close();

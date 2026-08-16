@@ -1,195 +1,222 @@
 import type {
-  AgentTaskApplyRequest,
-  AgentTaskApplyResponse,
-  AgentTaskDraft,
-  AgentTaskProposalRequest,
-  AgentTaskProposalResponse,
+  AgentTaskCreatedResponse,
+  AgentTaskRequest,
+  AgentTaskResponse,
+  AgentTaskStaffingGap,
+  Developer,
   Task,
 } from "@repo/shared-types";
 import {
   AgentUnavailableError,
-  NotFoundError,
-  SkillMismatchError,
+  ValidationError,
 } from "../errors/application-error.js";
+import {
+  AgentOrchestrationProviderError,
+  type AgentOrchestrationProvider,
+} from "../lib/agent-orchestration/agent-orchestration-provider.js";
+import type { PlannedTaskNode } from "../lib/agent-orchestration/decision-schema.js";
 import type { DeveloperRepository } from "../lib/repositories/developer-repository.js";
 import type { SkillRepository } from "../lib/repositories/skill-repository.js";
 import type { TaskRepository } from "../lib/repositories/task-repository.js";
-import {
-  resolveDraftTree,
-  type DraftResolutionPolicy,
-} from "../lib/task-planning/draft-resolution.js";
-import {
-  DEFAULT_DRAFT_LIMITS,
-  DraftShapeError,
-  validateDraftShape,
-  type DraftLimits,
-  type ShapedDraftNode,
-} from "../lib/task-planning/draft-shape.js";
-import {
-  TaskPlanningProviderError,
-  type TaskPlanningProvider,
-} from "../lib/task-planning/task-planning-provider.js";
 import type {
   TransactionClient,
   TransactionRunner,
 } from "../lib/transaction.js";
 
-/**
- * `propose` calls the configured agent and returns an editable, unpersisted
- * draft. `apply` treats a reviewed draft as untrusted input: it re-resolves
- * every ID and rechecks assignment/hierarchy rules before writing the whole
- * tree in one transaction.
- */
+const MAX_MESSAGES = 20;
+const MAX_CONVERSATION_CHARACTERS = 20_000;
+
 export interface AgentTaskService {
-  propose(input: AgentTaskProposalRequest): Promise<AgentTaskProposalResponse>;
-  apply(input: AgentTaskApplyRequest): Promise<AgentTaskApplyResponse>;
+  orchestrate(input: AgentTaskRequest): Promise<AgentTaskResponse>;
 }
 
-const generationPolicy: DraftResolutionPolicy = {
-  onUnknownSkill(skillId: string): never {
-    throw new DraftShapeError(
-      `Unknown skill id in generated draft: ${skillId}`,
-    );
-  },
-  onIneligibleAssignee(): string | null {
-    return null;
-  },
-};
-
-const applyPolicy: DraftResolutionPolicy = {
-  onUnknownSkill(skillId: string): never {
-    throw new NotFoundError(`Skill with id ${skillId} not found`);
-  },
-  onIneligibleAssignee(assigneeId, developer): string | null {
-    if (!developer) {
-      throw new NotFoundError(`Developer with id ${assigneeId} not found`);
-    }
-    throw new SkillMismatchError(
-      `Developer ${assigneeId} does not cover every required skill`,
-    );
-  },
-};
-
 export function createAgentTaskService(
-  provider: TaskPlanningProvider,
+  provider: AgentOrchestrationProvider,
   skillRepository: SkillRepository,
   developerRepository: DeveloperRepository,
   taskRepository: TaskRepository,
   transactionRunner: TransactionRunner,
-  limits: DraftLimits = DEFAULT_DRAFT_LIMITS,
 ): AgentTaskService {
-  const propose = async (
-    input: AgentTaskProposalRequest,
-  ): Promise<AgentTaskProposalResponse> => {
-    const [skills, developers] = await Promise.all([
-      skillRepository.list(),
-      developerRepository.list(),
-    ]);
+  const orchestrate = async (
+    input: AgentTaskRequest,
+  ): Promise<AgentTaskResponse> => {
+    validateConversation(input);
+    const skills = await skillRepository.list();
+    const listedSkillIds = new Set(skills.map((skill) => skill.id));
 
-    let raw: unknown;
+    let result;
     try {
-      raw = await provider.generate({
-        description: input.description,
-        skills,
-        developers,
-      });
+      result = await provider.decide({ messages: input.messages, skills });
     } catch (error) {
-      if (error instanceof TaskPlanningProviderError) {
+      if (error instanceof AgentOrchestrationProviderError) {
         throw new AgentUnavailableError(
           "Agent planning is not available right now.",
+          { cause: error },
         );
       }
       throw error;
     }
 
-    let shaped: ShapedDraftNode[];
-    try {
-      shaped = validateDraftShape(raw, limits);
-    } catch (error) {
-      if (error instanceof DraftShapeError) {
-        throw new AgentUnavailableError(
-          "Agent planning returned an invalid draft.",
-        );
-      }
-      throw error;
+    const decision = result.decision;
+    if (decision.action === "ask_clarification") {
+      return {
+        status: "needs_clarification",
+        question: decision.question,
+      };
     }
-
-    const skillsById = indexById(skills);
-    const developersById = indexById(developers);
-
-    let tasks: AgentTaskDraft[];
-    try {
-      tasks = resolveDraftTree(
-        shaped,
-        skillsById,
-        developersById,
-        generationPolicy,
+    if (!result.skillCatalogListed) {
+      throw new AgentUnavailableError(
+        "Agent planning did not inspect the current skill catalog.",
       );
-    } catch (error) {
-      if (error instanceof DraftShapeError) {
-        throw new AgentUnavailableError(
-          "Agent planning returned an invalid draft.",
-        );
-      }
-      throw error;
     }
-
-    return { tasks };
-  };
-
-  const apply = async (
-    input: AgentTaskApplyRequest,
-  ): Promise<AgentTaskApplyResponse> => {
-    const shaped = validateDraftShape(input.tasks, limits);
 
     return transactionRunner.run(async (tx) => {
-      const [skills, developers] = await Promise.all([
-        skillRepository.list(),
-        developerRepository.list(),
+      const [currentSkills, developers, workloads] = await Promise.all([
+        skillRepository.list(tx),
+        developerRepository.list(tx),
+        taskRepository.countActiveAssignmentsByDeveloper(tx),
       ]);
-      const skillsById = indexById(skills);
-      const developersById = indexById(developers);
+      const currentSkillIds = new Set(currentSkills.map((skill) => skill.id));
+      validatePlanSkills(decision.tasks, listedSkillIds, currentSkillIds);
 
-      const resolved = resolveDraftTree(
-        shaped,
-        skillsById,
-        developersById,
-        applyPolicy,
+      const tasks: Task[] = [];
+      const staffingGaps: AgentTaskStaffingGap[] = [];
+      await createTree(
+        decision.tasks,
+        null,
+        1,
+        developers,
+        workloads,
+        tx,
+        tasks,
+        staffingGaps,
       );
-
-      const created: Task[] = [];
-      await createTree(resolved, null, 1, tx, created);
-      return created;
+      return createdResponse(tasks, staffingGaps);
     });
   };
 
   const createTree = async (
-    nodes: AgentTaskDraft[],
+    nodes: PlannedTaskNode[],
     parentTaskId: string | null,
     depth: number,
+    developers: Developer[],
+    workloads: Map<string, number>,
     tx: TransactionClient,
     created: Task[],
+    staffingGaps: AgentTaskStaffingGap[],
   ): Promise<void> => {
     for (const node of nodes) {
+      const requiredSkillIds = [...new Set(node.requiredSkillIds)];
+      const assignee = selectAssignee(
+        node,
+        requiredSkillIds,
+        developers,
+        workloads,
+      );
       const task = await taskRepository.create(
         {
-          title: node.name,
+          title: node.title,
           description: node.description,
-          requiredSkillIds: node.requiredSkillIds,
+          requiredSkillIds,
           parentTaskId,
           depth,
-          assigneeId: node.assigneeId ?? null,
+          assigneeId: assignee?.id ?? null,
         },
         tx,
       );
       created.push(task);
-      await createTree(node.subtasks, task.id, depth + 1, tx, created);
+      if (assignee) {
+        workloads.set(assignee.id, (workloads.get(assignee.id) ?? 0) + 1);
+      } else {
+        staffingGaps.push({
+          taskId: task.id,
+          taskTitle: task.title,
+          requiredRole: node.requiredRole,
+          requiredSkillIds,
+          ...(node.unmatchedSkillRequirements.length > 0
+            ? { unmatchedSkillRequirements: node.unmatchedSkillRequirements }
+            : {}),
+        });
+      }
+      await createTree(
+        node.subtasks,
+        task.id,
+        depth + 1,
+        developers,
+        workloads,
+        tx,
+        created,
+        staffingGaps,
+      );
     }
   };
 
-  return { propose, apply };
+  return { orchestrate };
 }
 
-function indexById<T extends { id: string }>(items: T[]): Map<string, T> {
-  return new Map(items.map((item) => [item.id, item]));
+function validateConversation(input: AgentTaskRequest): void {
+  const { messages } = input;
+  const totalCharacters = messages.reduce(
+    (sum, message) => sum + message.content.length,
+    0,
+  );
+  if (
+    messages.length === 0 ||
+    messages.length > MAX_MESSAGES ||
+    messages[0]?.role !== "user" ||
+    messages.at(-1)?.role !== "user" ||
+    totalCharacters > MAX_CONVERSATION_CHARACTERS
+  ) {
+    throw new ValidationError(
+      "Agent conversation is invalid or exceeds its limits.",
+    );
+  }
+}
+
+function validatePlanSkills(
+  nodes: PlannedTaskNode[],
+  listedSkillIds: Set<string>,
+  currentSkillIds: Set<string>,
+): void {
+  for (const node of nodes) {
+    for (const skillId of node.requiredSkillIds) {
+      if (!listedSkillIds.has(skillId) || !currentSkillIds.has(skillId)) {
+        throw new AgentUnavailableError(
+          "Agent planning returned an invalid skill reference.",
+        );
+      }
+    }
+    validatePlanSkills(node.subtasks, listedSkillIds, currentSkillIds);
+  }
+}
+
+function selectAssignee(
+  node: PlannedTaskNode,
+  requiredSkillIds: string[],
+  developers: Developer[],
+  workloads: Map<string, number>,
+): Developer | undefined {
+  if (node.unmatchedSkillRequirements.length > 0) return undefined;
+  return developers
+    .filter((developer) =>
+      requiredSkillIds.every((skillId) => developer.skillIds.includes(skillId)),
+    )
+    .sort(
+      (left, right) =>
+        (workloads.get(left.id) ?? 0) - (workloads.get(right.id) ?? 0) ||
+        left.id.localeCompare(right.id),
+    )[0];
+}
+
+function createdResponse(
+  tasks: Task[],
+  staffingGaps: AgentTaskStaffingGap[],
+): AgentTaskCreatedResponse {
+  let message = `Created ${tasks.length} ${tasks.length === 1 ? "task" : "tasks"}.`;
+  if (staffingGaps.length === 1) {
+    message += ` One task remains unassigned and requires ${staffingGaps[0]!.requiredRole}.`;
+  } else if (staffingGaps.length > 1) {
+    message += ` ${staffingGaps.length} tasks remain unassigned; see staffingGaps for required roles.`;
+  }
+  return { status: "created", message, tasks, staffingGaps };
 }

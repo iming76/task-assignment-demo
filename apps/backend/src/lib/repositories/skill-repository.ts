@@ -14,7 +14,7 @@ import { translateKnownPrismaError } from "../prisma-error.js";
 
 /** Persistence boundary for skills. */
 export interface SkillRepository {
-  list(): Promise<Skill[]>;
+  list(tx?: TransactionClient): Promise<Skill[]>;
   findById(id: string, tx?: TransactionClient): Promise<Skill | null>;
   findByCategoryAndName(
     categoryId: string,
@@ -33,8 +33,9 @@ export interface SkillRepository {
 export class PrismaSkillRepository implements SkillRepository {
   constructor(private readonly client: PrismaClient) {}
 
-  async list(): Promise<Skill[]> {
-    const skills = await this.client.skill.findMany({
+  async list(tx?: TransactionClient): Promise<Skill[]> {
+    const client = tx ?? this.client;
+    const skills = await client.skill.findMany({
       orderBy: { id: "asc" },
     });
     return skills.map((s) => ({

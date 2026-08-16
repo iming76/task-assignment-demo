@@ -6,6 +6,10 @@ import type { ApiErrorCode } from "@repo/shared-types";
  * place that turns them into the public envelope.
  */
 export abstract class ApplicationError extends Error {
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
+  }
+
   abstract readonly code: ApiErrorCode;
   abstract readonly statusCode: number;
 }

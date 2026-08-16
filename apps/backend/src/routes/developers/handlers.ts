@@ -23,11 +23,11 @@ export function createDeveloperHandlers(
   service: DeveloperService,
 ): DeveloperHandlers {
   return {
-    async listDevelopers(request: FastifyRequest, reply: FastifyReply) {
+    async listDevelopers() {
       return service.list();
     },
 
-    async getDeveloper(request: FastifyRequest, reply: FastifyReply) {
+    async getDeveloper(request: FastifyRequest) {
       const { id } = request.params as { id: string };
       return service.get(id);
     },
@@ -40,7 +40,7 @@ export function createDeveloperHandlers(
       return developer;
     },
 
-    async updateDeveloper(request: FastifyRequest, reply: FastifyReply) {
+    async updateDeveloper(request: FastifyRequest) {
       const { id } = request.params as { id: string };
       return service.update(id, request.body as PatchDeveloperInput);
     },

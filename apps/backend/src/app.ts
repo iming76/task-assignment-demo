@@ -1,4 +1,5 @@
 import Fastify, { type FastifyInstance } from "fastify";
+import cors from "@fastify/cors";
 import { registerErrorHandler } from "./errors/error-mapper.js";
 import { registerAgentTaskRoutes } from "./routes/agent-task/routes.js";
 import { createAgentTaskHandlers } from "./routes/agent-task/handlers.js";
@@ -35,6 +36,7 @@ export interface AppDependencies {
 
 export interface AppOptions {
   logger?: boolean;
+  corsOrigin?: string | string[] | boolean;
 }
 
 /**
@@ -48,6 +50,11 @@ export function buildApp(
 ): FastifyInstance {
   const app = Fastify({
     logger: options.logger ?? true,
+  });
+
+  void app.register(cors, {
+    origin: options.corsOrigin ?? "http://localhost:3000",
+    methods: ["GET", "POST", "PATCH", "DELETE"],
   });
 
   registerErrorHandler(app);

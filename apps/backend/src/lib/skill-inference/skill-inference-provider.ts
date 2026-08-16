@@ -8,7 +8,7 @@ export interface SkillInferenceRequest {
 
 /**
  * Provider-neutral seam for automatic skill inference, mirroring
- * ../task-planning/task-planning-provider.ts. The raw AI SDK adapter lives
+ * ../agent-orchestration/agent-orchestration-provider.ts. The raw AI SDK adapter lives
  * in openai-skill-inference-provider.ts. Implementations return untrusted
  * candidate skill ids; SkillInferenceService (skill-inference-service.ts)
  * is the only caller and rejects any output that is not entirely canonical

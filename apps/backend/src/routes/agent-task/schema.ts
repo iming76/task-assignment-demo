@@ -1,61 +1,64 @@
 import type { JsonSchema } from "../schema.js";
 import { taskSchema } from "../tasks/schema.js";
 
-/**
- * Registered once (with its own $id) via `app.addSchema` in routes.ts, and
- * referenced by `$ref: "AgentTaskDraft#"` rather than inlined, because
- * `subtasks` points back at this same schema and an inlined copy would
- * expand forever.
- */
-export const agentTaskDraftSchema: JsonSchema = {
-  $id: "AgentTaskDraft",
+const agentTaskMessageSchema: JsonSchema = {
   type: "object",
-  required: ["name", "description", "requiredSkillIds", "subtasks"],
+  required: ["role", "content"],
   additionalProperties: false,
   properties: {
-    name: { type: "string", minLength: 1 },
-    description: { type: "string", minLength: 1 },
-    assigneeId: { type: ["string", "null"] },
-    requiredSkillIds: { type: "array", items: { type: "string" } },
-    subtasks: {
-      type: "array",
-      items: { $ref: "AgentTaskDraft#" },
-    },
+    role: { type: "string", enum: ["user", "assistant"] },
+    content: { type: "string", minLength: 1, maxLength: 5000 },
   },
 };
 
-export const agentTaskProposalRequestSchema: JsonSchema = {
+export const agentTaskRequestSchema: JsonSchema = {
   type: "object",
-  required: ["description"],
+  required: ["messages"],
   additionalProperties: false,
   properties: {
-    description: { type: "string", minLength: 1 },
-  },
-};
-
-export const agentTaskProposalResponseSchema: JsonSchema = {
-  type: "object",
-  required: ["tasks"],
-  additionalProperties: false,
-  properties: {
-    tasks: { type: "array", items: { $ref: "AgentTaskDraft#" } },
-  },
-};
-
-export const agentTaskApplyRequestSchema: JsonSchema = {
-  type: "object",
-  required: ["tasks"],
-  additionalProperties: false,
-  properties: {
-    tasks: {
+    messages: {
       type: "array",
       minItems: 1,
-      items: { $ref: "AgentTaskDraft#" },
+      maxItems: 20,
+      items: agentTaskMessageSchema,
     },
   },
 };
 
-export const agentTaskApplyResponseSchema: JsonSchema = {
-  type: "array",
-  items: taskSchema,
+export const agentTaskClarificationResponseSchema: JsonSchema = {
+  type: "object",
+  required: ["status", "question"],
+  additionalProperties: false,
+  properties: {
+    status: { const: "needs_clarification" },
+    question: { type: "string" },
+  },
+};
+
+const staffingGapSchema: JsonSchema = {
+  type: "object",
+  required: ["taskId", "taskTitle", "requiredRole", "requiredSkillIds"],
+  additionalProperties: false,
+  properties: {
+    taskId: { type: "string" },
+    taskTitle: { type: "string" },
+    requiredRole: { type: "string" },
+    requiredSkillIds: { type: "array", items: { type: "string" } },
+    unmatchedSkillRequirements: {
+      type: "array",
+      items: { type: "string" },
+    },
+  },
+};
+
+export const agentTaskCreatedResponseSchema: JsonSchema = {
+  type: "object",
+  required: ["status", "message", "tasks", "staffingGaps"],
+  additionalProperties: false,
+  properties: {
+    status: { const: "created" },
+    message: { type: "string" },
+    tasks: { type: "array", items: taskSchema },
+    staffingGaps: { type: "array", items: staffingGapSchema },
+  },
 };

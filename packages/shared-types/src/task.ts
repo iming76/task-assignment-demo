@@ -11,6 +11,8 @@ export interface Task {
   assigneeId: string | null;
   parentTaskId: string | null;
   requiredSkillIds: string[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface CreateTaskInput {

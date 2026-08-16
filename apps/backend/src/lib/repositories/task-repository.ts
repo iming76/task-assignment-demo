@@ -60,6 +60,8 @@ async function flattenTask(taskRecord: {
   assigneeId: string | null;
   parentTaskId: string | null;
   requiredSkills: Array<{ skillId: string }>;
+  createdAt: Date;
+  updatedAt: Date;
 }): Promise<Task> {
   return {
     id: taskRecord.id,
@@ -70,6 +72,8 @@ async function flattenTask(taskRecord: {
     assigneeId: taskRecord.assigneeId,
     parentTaskId: taskRecord.parentTaskId,
     requiredSkillIds: taskRecord.requiredSkills.map((rs) => rs.skillId).sort(),
+    createdAt: taskRecord.createdAt.toISOString(),
+    updatedAt: taskRecord.updatedAt.toISOString(),
   };
 }
 

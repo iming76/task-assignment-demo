@@ -11,6 +11,8 @@ export const taskSchema: JsonSchema = {
     "assigneeId",
     "parentTaskId",
     "requiredSkillIds",
+    "createdAt",
+    "updatedAt",
   ],
   additionalProperties: false,
   properties: {
@@ -22,6 +24,8 @@ export const taskSchema: JsonSchema = {
     assigneeId: { type: ["string", "null"] },
     parentTaskId: { type: ["string", "null"] },
     requiredSkillIds: { type: "array", items: { type: "string" } },
+    createdAt: { type: "string" },
+    updatedAt: { type: "string" },
   },
 };
 

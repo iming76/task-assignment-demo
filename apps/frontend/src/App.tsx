@@ -1,7 +1,6 @@
 import { Route, Routes } from "react-router-dom";
 
 import { Navbar } from "./components/Navbar";
-import { AgentTaskPage } from "./pages/AgentTaskPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { DevelopersPage } from "./pages/DevelopersPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
@@ -18,7 +17,6 @@ export function App() {
           <Route path="/developer" element={<DevelopersPage />} />
           <Route path="/skill" element={<SkillsPage />} />
           <Route path="/task" element={<TasksPage />} />
-          <Route path="/agent-task" element={<AgentTaskPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>

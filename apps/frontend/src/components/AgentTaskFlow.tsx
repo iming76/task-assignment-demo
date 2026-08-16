@@ -28,7 +28,7 @@ function orchestrationErrorMessage(error: unknown): string {
     : "Unable to plan and create the requested work.";
 }
 
-export function AgentTaskPage() {
+export function AgentTaskFlow({ onCreated }: { onCreated?: () => void }) {
   const orchestrate = useOrchestrateAgentTask();
   const developersQuery = useDevelopers();
   const skillsQuery = useSkills();
@@ -58,6 +58,7 @@ export function AgentTaskPage() {
           setInput("");
           setMessages(nextMessages);
           setCreated(response);
+          onCreated?.();
         },
       },
     );
@@ -135,36 +136,25 @@ export function AgentTaskPage() {
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Agent-assisted task creation</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
-            <Field>
-              <FieldLabel htmlFor="agent-input">
-                Describe the work you need done
-              </FieldLabel>
-              <textarea
-                id="agent-input"
-                className="min-h-24 w-full rounded-md border border-input bg-transparent px-2.5 py-1.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
-                value={input}
-                onChange={(event) => setInput(event.target.value)}
-                required
-              />
-            </Field>
-            {orchestrate.isError ? (
-              <FieldError>
-                {orchestrationErrorMessage(orchestrate.error)}
-              </FieldError>
-            ) : null}
-            <Button type="submit" disabled={orchestrate.isPending}>
-              {orchestrate.isPending ? "Planning…" : "Create tasks"}
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </div>
+    <form className="flex flex-col gap-4" onSubmit={handleSubmit}>
+      <Field>
+        <FieldLabel htmlFor="agent-input">
+          Describe the work you need done
+        </FieldLabel>
+        <textarea
+          id="agent-input"
+          className="min-h-24 w-full rounded-md border border-input bg-transparent px-2.5 py-1.5 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
+          value={input}
+          onChange={(event) => setInput(event.target.value)}
+          required
+        />
+      </Field>
+      {orchestrate.isError ? (
+        <FieldError>{orchestrationErrorMessage(orchestrate.error)}</FieldError>
+      ) : null}
+      <Button type="submit" disabled={orchestrate.isPending}>
+        {orchestrate.isPending ? "Planning…" : "Create tasks"}
+      </Button>
+    </form>
   );
 }

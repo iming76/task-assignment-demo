@@ -1,4 +1,5 @@
 import { type FormEvent, useState } from "react";
+import { Link } from "react-router-dom";
 
 import type { Task } from "@repo/shared-types";
 import {
@@ -18,6 +19,7 @@ import {
 } from "@repo/ui";
 
 import { ApiClientError } from "../api";
+import { AgentTaskModal } from "../components/AgentTaskModal";
 import { ConfirmDeleteDialog } from "../components/ConfirmDeleteDialog";
 import { EmptyState, ErrorState, LoadingState } from "../components/RouteState";
 import {
@@ -55,6 +57,7 @@ export function TasksPage() {
   const [assignment, setAssignment] = useState(emptyTaskAssignment);
   const [deleteTarget, setDeleteTarget] = useState<Task | null>(null);
   const [isAddOpen, setIsAddOpen] = useState(false);
+  const [isAgentOpen, setIsAgentOpen] = useState(false);
   const [page, setPage] = useState(1);
 
   const skills = skillsQuery.data ?? [];
@@ -103,6 +106,7 @@ export function TasksPage() {
 
   const tree = buildTaskTree(tasks);
   const isCreating = createTask.isPending || assignCreatedTask.isPending;
+  const hasNoDevelopers = !developersQuery.isLoading && developers.length === 0;
 
   const pageCount = Math.max(1, Math.ceil(tree.roots.length / TASKS_PER_PAGE));
   const currentPage = Math.min(page, pageCount);
@@ -115,16 +119,39 @@ export function TasksPage() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-between gap-3">
         <h1 className="text-lg font-semibold">Tasks</h1>
-        <Button
-          onClick={() => {
-            createTask.reset();
-            assignCreatedTask.reset();
-            setIsAddOpen(true);
-          }}
-        >
-          Add task
-        </Button>
+        <div className="flex items-center gap-2">
+          {hasNoDevelopers ? (
+            <Button variant="outline" asChild>
+              <Link to="/developer">Add developer</Link>
+            </Button>
+          ) : null}
+          <Button
+            variant="outline"
+            disabled={hasNoDevelopers}
+            onClick={() => setIsAgentOpen(true)}
+          >
+            Add task using agent
+          </Button>
+          <Button
+            disabled={hasNoDevelopers}
+            onClick={() => {
+              createTask.reset();
+              assignCreatedTask.reset();
+              setIsAddOpen(true);
+            }}
+          >
+            Add task
+          </Button>
+        </div>
       </div>
+
+      {hasNoDevelopers ? (
+        <p className="text-sm text-muted-foreground">
+          You need at least one developer before you can add a task.
+        </p>
+      ) : null}
+
+      <AgentTaskModal open={isAgentOpen} onOpenChange={setIsAgentOpen} />
 
       <Dialog
         open={isAddOpen}

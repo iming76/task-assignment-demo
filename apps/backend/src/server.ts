@@ -4,11 +4,27 @@ import { loadEnv } from "./config/env.js";
 import { disconnectPrisma, prisma } from "./lib/prisma.js";
 import { PrismaHealthRepository } from "./lib/repositories/health-repository.js";
 import { DefaultHealthService } from "./services/health-service.js";
+import { PrismaTaskRepository } from "./lib/repositories/task-repository.js";
+import { DefaultTaskService } from "./services/task-service.js";
+import { PrismaDeveloperRepository } from "./lib/repositories/developer-repository.js";
+import { DefaultDeveloperService } from "./services/developer-service.js";
+import { PrismaSkillRepository } from "./lib/repositories/skill-repository.js";
+import { DefaultSkillService } from "./services/skill-service.js";
+import { PrismaCategoryRepository } from "./lib/repositories/category-repository.js";
+import { DefaultCategoryService } from "./services/category-service.js";
 
 const env = loadEnv();
 
 const app = buildApp({
   healthService: new DefaultHealthService(new PrismaHealthRepository(prisma)),
+  taskService: new DefaultTaskService(new PrismaTaskRepository(prisma)),
+  developerService: new DefaultDeveloperService(
+    new PrismaDeveloperRepository(prisma),
+  ),
+  skillService: new DefaultSkillService(new PrismaSkillRepository(prisma)),
+  categoryService: new DefaultCategoryService(
+    new PrismaCategoryRepository(prisma),
+  ),
 });
 
 async function shutdown(): Promise<void> {
